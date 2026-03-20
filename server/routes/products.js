@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import db, { formatProduct } from '../db.js';
 import { requireAdmin } from '../auth.js';
+import { handleUnexpectedError, sendError } from '../http.js';
+import { logInfo } from '../logger.js';
 import { validateProductPayload } from '../validators.js';
 
 const router = Router();
@@ -43,17 +45,66 @@ function ensureBrand(name, fallbackId) {
   return Number(result.lastInsertRowid);
 }
 
+function getCategoryById(categoryId) {
+  if (!categoryId) return null;
+  return db.prepare('SELECT id, name FROM categories WHERE id = ?').get(categoryId) || null;
+}
+
+function getBrandById(brandId) {
+  if (!brandId) return null;
+  return db.prepare('SELECT id, name FROM brands WHERE id = ?').get(brandId) || null;
+}
+
+function validateProductRelations(input = {}, { existingId = null } = {}) {
+  const errors = [];
+
+  if (input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== '') {
+    const category = getCategoryById(Number(input.categoryId));
+    if (!category) {
+      errors.push('La categoría seleccionada no existe');
+    } else if (input.category && String(input.category).trim() && String(input.category).trim() !== category.name) {
+      errors.push('El nombre de categoría no coincide con la categoría seleccionada');
+    }
+  }
+
+  if (input.brandId !== undefined && input.brandId !== null && input.brandId !== '') {
+    const brand = getBrandById(Number(input.brandId));
+    if (!brand) {
+      errors.push('La marca seleccionada no existe');
+    } else if (input.brand && String(input.brand).trim() && String(input.brand).trim() !== brand.name) {
+      errors.push('El nombre de marca no coincide con la marca seleccionada');
+    }
+  }
+
+  if (input.sku !== undefined) {
+    const sku = String(input.sku || '').trim();
+    if (sku) {
+      const duplicate = db
+        .prepare('SELECT id FROM products WHERE sku = ? AND (? IS NULL OR id <> ?)')
+        .get(sku, existingId, existingId);
+      if (duplicate) errors.push('El SKU ya existe en otro producto');
+    }
+  }
+
+  return errors;
+}
+
 function normalizeProductInput(input = {}) {
-  const categoryId = ensureCategory(input.category, input.categoryId);
-  const brandId = ensureBrand(input.brand, input.brandId);
+  const resolvedCategoryId = input.categoryId ? Number(input.categoryId) : null;
+  const resolvedBrandId = input.brandId ? Number(input.brandId) : null;
+  const existingCategory = getCategoryById(resolvedCategoryId);
+  const existingBrand = getBrandById(resolvedBrandId);
+
+  const categoryId = ensureCategory(input.category || existingCategory?.name, resolvedCategoryId);
+  const brandId = ensureBrand(input.brand || existingBrand?.name, resolvedBrandId);
 
   return {
     name: input.name || '',
     description: input.description || '',
     price: Number(input.price || 0),
     stock: Number(input.stock || 0),
-    category: input.category || '',
-    brand: input.brand || '',
+    category: input.category || existingCategory?.name || '',
+    brand: input.brand || existingBrand?.name || '',
     image_url: input.image_url || input.image || '',
     featured: input.featured !== undefined ? (input.featured ? 1 : 0) : input.isFeatured ? 1 : 0,
     active: input.active !== undefined ? (input.active ? 1 : 0) : input.isActive !== false ? 1 : 0,
@@ -109,20 +160,25 @@ router.get('/', (req, res) => {
     const rows = db.prepare(sql).all(...params);
     return res.json(rows.map(formatProduct));
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return handleUnexpectedError(error, req, res, 'products_list');
   }
 });
 
 router.get('/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
-  if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
+  if (!row) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
   return res.json(formatProduct(row));
 });
 
 router.post('/', requireAdmin, (req, res) => {
   const errors = validateProductPayload(req.body);
   if (errors.length > 0) {
-    return res.status(400).json({ error: errors.join('. ') });
+    return sendError(res, req, 400, 'VALIDATION_ERROR', errors.join('. '));
+  }
+
+  const relationErrors = validateProductRelations(req.body);
+  if (relationErrors.length > 0) {
+    return sendError(res, req, 400, 'VALIDATION_ERROR', relationErrors.join('. '));
   }
 
   try {
@@ -134,21 +190,34 @@ router.post('/', requireAdmin, (req, res) => {
     `).run(payload);
 
     const row = db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid);
+    logInfo('admin_product_create', {
+      requestId: req.requestId,
+      user: req.user?.email,
+      productId: row?.id,
+    });
     return res.status(201).json(formatProduct(row));
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return handleUnexpectedError(error, req, res, 'products_create');
   }
 });
 
 router.put('/:id', requireAdmin, (req, res) => {
   const errors = validateProductPayload(req.body, { partial: true });
   if (errors.length > 0) {
-    return res.status(400).json({ error: errors.join('. ') });
+    return sendError(res, req, 400, 'VALIDATION_ERROR', errors.join('. '));
   }
 
   try {
     const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
-    if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
+    if (!existing) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
+
+    const relationErrors = validateProductRelations(
+      { ...formatProduct(existing), ...req.body },
+      { existingId: Number(req.params.id) }
+    );
+    if (relationErrors.length > 0) {
+      return sendError(res, req, 400, 'VALIDATION_ERROR', relationErrors.join('. '));
+    }
 
     const normalized = normalizeProductInput({ ...formatProduct(existing), ...req.body });
     const updates = [];
@@ -168,24 +237,39 @@ router.put('/:id', requireAdmin, (req, res) => {
       }
     }
 
-    if (!updates.length) return res.status(400).json({ error: 'No hay campos para actualizar' });
+    if (!updates.length) return sendError(res, req, 400, 'VALIDATION_ERROR', 'No hay campos para actualizar');
 
     values.push(req.params.id);
     db.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
     const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    logInfo('admin_product_update', {
+      requestId: req.requestId,
+      user: req.user?.email,
+      productId: row?.id,
+      updatedFields: updates.map((item) => item.split(' = ')[0]),
+    });
     return res.json(formatProduct(row));
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return handleUnexpectedError(error, req, res, 'products_update');
   }
 });
 
 router.delete('/:id', requireAdmin, (req, res) => {
-  const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
+  try {
+    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+    if (!existing) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
 
-  db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
-  return res.json({ success: true });
+    db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+    logInfo('admin_product_delete', {
+      requestId: req.requestId,
+      user: req.user?.email,
+      productId: Number(req.params.id),
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    return handleUnexpectedError(error, req, res, 'products_delete');
+  }
 });
 
 export default router;

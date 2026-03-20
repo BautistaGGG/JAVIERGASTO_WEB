@@ -1,23 +1,68 @@
 import { Router } from 'express';
 import db, { formatContact } from '../db.js';
 import { requireAdmin } from '../auth.js';
+import { handleUnexpectedError, sendError } from '../http.js';
+import { logInfo } from '../logger.js';
 import { validateContactPayload, validateInquiryStatus } from '../validators.js';
 
 const router = Router();
 
-router.get('/', requireAdmin, (_req, res) => {
+router.get('/', requireAdmin, (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM contacts ORDER BY created_at DESC, id DESC').all();
-    return res.json(rows.map(formatContact));
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 20)));
+    const status = req.query.status ? String(req.query.status) : null;
+    const search = req.query.search ? String(req.query.search).trim() : '';
+    const flatMode = req.query.flat === 'true';
+
+    const conditions = [];
+    const params = [];
+
+    if (status) {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+
+    if (search) {
+      const term = `%${search}%`;
+      conditions.push('(name LIKE ? OR email LIKE ? OR message LIKE ? OR product_name LIKE ?)');
+      params.push(term, term, term, term);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const total = db.prepare(`SELECT COUNT(*) AS count FROM contacts ${where}`).get(...params)?.count || 0;
+    const offset = (page - 1) * pageSize;
+    const rows = db.prepare(`
+      SELECT * FROM contacts
+      ${where}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, pageSize, offset);
+    const items = rows.map(formatContact);
+
+    if (flatMode) return res.json(items);
+    return res.json({
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+      filters: {
+        status: status || null,
+        search: search || null,
+      },
+    });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return handleUnexpectedError(error, req, res, 'contacts_list');
   }
 });
 
 router.post('/', (req, res) => {
   const errors = validateContactPayload(req.body);
   if (errors.length > 0) {
-    return res.status(400).json({ error: errors.join('. ') });
+    return sendError(res, req, 400, 'VALIDATION_ERROR', errors.join('. '));
   }
 
   try {
@@ -41,7 +86,7 @@ router.post('/', (req, res) => {
     const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
     return res.status(201).json(formatContact(row));
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return handleUnexpectedError(error, req, res, 'contacts_create');
   }
 });
 
@@ -49,14 +94,24 @@ router.put('/:id/status', requireAdmin, (req, res) => {
   const status = req.body?.status || 'pending';
   const errors = validateInquiryStatus(status);
   if (errors.length > 0) {
-    return res.status(400).json({ error: errors.join('. ') });
+    return sendError(res, req, 400, 'VALIDATION_ERROR', errors.join('. '));
   }
 
-  db.prepare('UPDATE contacts SET status = ? WHERE id = ?').run(status, req.params.id);
-  const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);
+  try {
+    db.prepare('UPDATE contacts SET status = ? WHERE id = ?').run(status, req.params.id);
+    const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);
 
-  if (!row) return res.status(404).json({ error: 'Consulta no encontrada' });
-  return res.json(formatContact(row));
+    if (!row) return sendError(res, req, 404, 'NOT_FOUND', 'Consulta no encontrada');
+    logInfo('admin_contact_status_update', {
+      requestId: req.requestId,
+      user: req.user?.email,
+      contactId: row?.id,
+      status,
+    });
+    return res.json(formatContact(row));
+  } catch (error) {
+    return handleUnexpectedError(error, req, res, 'contacts_update_status');
+  }
 });
 
 export default router;

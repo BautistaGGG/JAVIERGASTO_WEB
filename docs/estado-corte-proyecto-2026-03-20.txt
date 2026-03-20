@@ -1,0 +1,133 @@
+﻿ESTADO DE CORTE DEL PROYECTO - JAVIERGASTO_WEB
+Fecha: 2026-03-20
+Ubicacion: D:\WEB_JG\JAVIERGASTO_WEB
+
+1) RESUMEN DE ESTADO
+- Etapa actual: MVP avanzado y operable (no final productivo completo).
+- Enfoque actual: mejorar operacion admin/UI-UX sin migrar a DB real todavia.
+- Admin pensado para un unico operador (single-admin).
+- Exportacion removida por decision de simplificacion (menos complejidad tecnica y UX).
+
+2) CAMBIOS IMPLEMENTADOS (HASTA ESTE CORTE)
+2.1 Frontend
+- Admin activo cambiado a V3 (App apunta a AdminPanelV3).
+- Panel admin con:
+  - Dashboard operativo con KPIs funcionales.
+  - Gestion de productos con filtros, busqueda, paginacion y acciones frecuentes.
+  - Gestion de consultas con triage operativo.
+  - Modal de confirmacion propio (reemplazo de confirm() del navegador).
+  - Toasters de feedback homogeneo (success/error/loading UX coherente).
+  - Atajos de teclado base:
+    - N = nuevo producto
+    - / = foco en busqueda
+    - Esc = cerrar modal
+  - Mejoras de foco/teclado y estados de botones durante requests.
+
+- P2/P3 recientes aplicados en AdminPanelV3:
+  - P2 Consultas:
+    - SLA visual por consulta: <24h, 24-48h, >48h, Respondida.
+    - Columna SLA en tabla desktop.
+    - Resaltado de casos criticos (>48h pendientes).
+    - Presets de filtros rapidos:
+      - Pendientes criticas
+      - Respondidas hoy
+      - WhatsApp pendientes
+    - Ajustes mobile en cards de consultas (prioridad visual y acciones rapidas).
+  - P3 Dashboard:
+    - Comparativa semanal de consultas (semana actual vs semana anterior).
+    - Comparativa semanal de tasa de respuesta (delta en puntos).
+
+2.2 Backend/API
+- API Express con rutas publicas y admin.
+- Auth admin con token:
+  - ADMIN_TOKEN_SECRET / ADMIN_TOKEN_SECRETS (soporte de rotacion).
+  - TTL de token configurable.
+- Hardening base:
+  - Seguridad/CORS/rate limiting.
+  - Logging y metricas operativas.
+  - Endpoints admin protegidos.
+- SQLite local con scripts:
+  - init-db
+  - backup-db
+  - restore-db
+
+2.3 Operacion/Documentacion
+- Se agregaron docs operativas y de criterios semanales (runbook/kpis/checklists).
+- Se dejo roadmap de tareas en task.md para siguiente ola.
+
+3) CARACTERISTICAS ACTUALES DE LA WEB
+3.1 Publico
+- Catalogo de productos.
+- Detalle de producto.
+- Contacto y consultas.
+- Integraciones de WhatsApp para mensajes comerciales.
+
+3.2 Admin
+- Login/logout admin.
+- CRUD de productos.
+- CRUD de categorias y marcas.
+- Bandeja de consultas:
+  - filtros por estado/origen/texto/fecha
+  - cambio rapido de estado pendiente/respondida
+  - detalle con plantillas rapidas y navegacion siguiente/anterior
+  - paginacion
+- Dashboard:
+  - metricas de productos
+  - pendientes >48h
+  - tasa de respuesta
+  - top producto consultado
+  - salud API (availability, p95, errores)
+  - comparativa semanal (consultas y tasa)
+
+4) CALIDAD / VALIDACION
+- Build: OK (con SKIP_NODE_VERSION_CHECK=true en este entorno local).
+- Tests: OK (14/14).
+- Nota entorno local: Node actual detectado 20.12.0; el proyecto pide 20.19+ o 22.12+.
+
+5) DECISIONES CLAVE TOMADAS
+- No avanzar con DB real hasta tener datos completos del cliente.
+- Priorizar mejoras UX/operativas de admin de bajo riesgo.
+- Mantener arquitectura actual sin refactor estructural grande por ahora.
+- Quitar exportacion para evitar complejidad innecesaria.
+
+6) PENDIENTES PRINCIPALES (POSTERGADOS O SIGUIENTE FASE)
+- Migracion de mock/local a datos reales (modelo + migracion + staging).
+- Tests de integracion mas profundos en admin (filtros combinados, bulk, plantillas).
+- Smoke E2E frontend (playwright/cypress) para flujo critico completo.
+- Hardening operativo adicional (monitoreo/alertas externas y runbook de incidentes formal).
+
+7) COMO RETOMAR RAPIDO (CHECKLIST)
+1. Verificar version de Node (objetivo recomendado: 22.12.0).
+2. npm install
+3. npm run init-db
+4. Terminal A: npm run server
+5. Terminal B: npm run dev
+6. Validar admin en:
+   - Dashboard comparativa semanal
+   - Consultas con presets y SLA
+   - Flujo cambio de estado pendiente/respondida
+7. Antes de merge/release:
+   - npm run build
+   - npm test
+
+8) ARCHIVOS CLAVE PARA RETOMAR
+- Frontend admin principal:
+  - src/admin/AdminPanelV3.jsx
+  - src/context/AdminContext.jsx
+  - src/context/AuthContext.jsx
+  - src/App.tsx
+- Backend auth/api:
+  - server/auth.js
+  - server/server.js
+  - server/routes/admin.js
+  - server/routes/products.js
+  - server/routes/contacts.js
+  - server/routes/taxonomy.js
+  - server/db.js
+- Operacion y plan:
+  - task.md
+  - docs/prioridades-mejoras.md
+  - docs/weekly-ops-criteria.md
+  - README.md
+
+Fin del corte.

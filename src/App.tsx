@@ -12,7 +12,7 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
-import AdminPanel from './admin/AdminPanel';
+import AdminPanel from './admin/AdminPanelV3';
 import Contact from './pages/Contact';
 import Comparator from './pages/Comparator';
 import NotFound from './pages/NotFound';

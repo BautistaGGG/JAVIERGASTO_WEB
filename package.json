@@ -3,12 +3,21 @@
     "private":  true,
     "version":  "0.0.0",
     "type":  "module",
+    "engines":  {
+                    "node":  "^20.19.0 || >=22.12.0"
+                },
     "scripts":  {
+                    "check-node":  "node scripts/check-node-version.js",
+                    "pretest":  "npm run check-node",
+                    "prebuild":  "npm run check-node",
                     "dev":  "vite",
                     "build":  "vite build",
                     "preview":  "vite preview",
                     "server":  "node server/server.js",
                     "init-db":  "node server/initDatabase.js",
+                    "backup-db":  "node server/backupDatabase.js",
+                    "restore-db":  "node server/restoreDatabase.js",
+                    "smoke:postdeploy":  "node scripts/post-deploy-smoke.js",
                     "test":  "node tests/run.js"
                 },
     "dependencies":  {

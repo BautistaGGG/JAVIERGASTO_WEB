@@ -84,7 +84,7 @@ function AdminLogin() {
 
 // ============ DASHBOARD ============
 function Dashboard() {
-  const { getStats } = useAdmin();
+  const { getStats, apiMetrics } = useAdmin();
   const stats = getStats();
 
   const cards = [
@@ -97,12 +97,35 @@ function Dashboard() {
     { label: 'Consultas pendientes', value: stats.pendingInquiries, color: 'bg-orange-500', icon: MessageSquare },
     { label: 'Consultas totales', value: stats.totalInquiries, color: 'bg-teal-500', icon: MessageSquare },
   ];
+  const operationalCards = [
+    { label: 'Disponibilidad API', value: apiMetrics ? `${apiMetrics.requests.availabilityPct}%` : '-', color: 'bg-emerald-500', icon: Eye },
+    { label: 'P95 (ms)', value: apiMetrics ? apiMetrics.latency.p95Ms : '-', color: 'bg-cyan-500', icon: Clock },
+    { label: 'Errores de ruta', value: apiMetrics ? apiMetrics.errors.route : '-', color: 'bg-rose-500', icon: MessageSquare },
+    { label: 'Errores no controlados', value: apiMetrics ? apiMetrics.errors.unhandled : '-', color: 'bg-slate-600', icon: MessageSquare },
+  ];
 
   return (
     <div>
       <h2 className="text-xl font-extrabold text-gray-900 mb-6">Dashboard</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
+          <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 ${c.color} rounded-xl flex items-center justify-center`}>
+                <c.icon size={18} className="text-white" />
+              </div>
+              <div>
+                <p className="text-2xl font-extrabold text-gray-900">{c.value}</p>
+                <p className="text-xs text-gray-500">{c.label}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-sm font-extrabold text-gray-700 mt-8 mb-3 uppercase tracking-wide">Salud API</h3>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {operationalCards.map((c) => (
           <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 ${c.color} rounded-xl flex items-center justify-center`}>
@@ -610,6 +633,7 @@ function InquiriesManager() {
 // ============ MAIN ADMIN PANEL ============
 export default function AdminPanel() {
   const { isAuthenticated, logout, user } = useAuth();
+  const { apiError } = useAdmin();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -701,12 +725,21 @@ export default function AdminPanel() {
 
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+          {apiError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {apiError}
+            </div>
+          )}
           {renderTab()}
         </main>
       </div>
     </div>
   );
 }
+
+
+
+
 
 
 

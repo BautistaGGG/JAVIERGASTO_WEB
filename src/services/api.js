@@ -1,4 +1,13 @@
-﻿const API_URL = import.meta.env?.VITE_API_URL || '/api';
+import { runtimeConfig } from '../config/runtime.js';
+
+const API_URL = runtimeConfig.apiUrl;
+const API_UNAVAILABLE_ERROR = 'API_UNAVAILABLE';
+
+const createApiUnavailableError = (endpoint) => {
+  const error = new Error(`API unavailable for ${endpoint}`);
+  error.code = API_UNAVAILABLE_ERROR;
+  return error;
+};
 
 export async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem('industrialpro_token');
@@ -16,8 +25,13 @@ export async function apiFetch(endpoint, options = {}) {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      const error = new Error(payload.error || `HTTP ${response.status}`);
+      const errorMessage = typeof payload.error === 'string'
+        ? payload.error
+        : payload.error?.message || `HTTP ${response.status}`;
+      const error = new Error(errorMessage);
       error.status = response.status;
+      error.code = payload.error?.code;
+      error.requestId = payload.error?.requestId;
       throw error;
     }
 
@@ -31,5 +45,13 @@ export async function apiFetch(endpoint, options = {}) {
   }
 }
 
-export default apiFetch;
+export function ensureApiResponse(data, endpoint) {
+  if (data !== null) return data;
+  throw createApiUnavailableError(endpoint);
+}
 
+export function isApiUnavailableError(error) {
+  return error?.code === API_UNAVAILABLE_ERROR;
+}
+
+export default apiFetch;

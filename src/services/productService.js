@@ -1,40 +1,50 @@
 ﻿import { apiFetch } from './api.js';
 import { createContact, getContacts, submitContactForm, updateContactStatus } from './contactService.js';
+import { isMockFallbackEnabled } from '../config/runtime.js';
 import { products, categories, brands, mockInquiries } from '../data/products.js';
 
 const delay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const ensureMockFallback = (error) => {
+  if (!isMockFallbackEnabled()) throw error;
+};
+
 export const getAllProducts = async () => {
   const data = await apiFetch('/products');
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return products.filter((product) => product.isActive);
 };
 
 export const getProductById = async (id) => {
   const data = await apiFetch(`/products/${id}`);
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return products.find((product) => product.id === Number(id)) || null;
 };
 
 export const getProductsByCategory = async (categoryId) => {
   const data = await apiFetch(`/products?category=${categoryId}`);
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return products.filter((product) => product.categoryId === Number(categoryId) && product.isActive);
 };
 
 export const getFeaturedProducts = async () => {
   const data = await apiFetch('/products?featured=true');
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return products.filter((product) => product.isFeatured && product.isActive);
 };
 
 export const searchProducts = async (query) => {
   const data = await apiFetch(`/products?search=${encodeURIComponent(query)}`);
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   const normalized = query.toLowerCase();
   return products.filter((product) =>
@@ -49,14 +59,16 @@ export const searchProducts = async (query) => {
 
 export const getAllCategories = async () => {
   const data = await apiFetch('/categories');
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return [...categories];
 };
 
 export const getAllBrands = async () => {
   const data = await apiFetch('/brands');
-  if (data) return data;
+  if (data !== null) return data;
+  ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
   await delay();
   return [...brands];
 };
@@ -64,8 +76,14 @@ export const getAllBrands = async () => {
 export const getInquiries = async () => {
   try {
     const data = await getContacts();
-    if (data) return data;
-  } catch {
+    if (data !== null) {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.items)) return data.items;
+      return [];
+    }
+    ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
+  } catch (error) {
+    ensureMockFallback(error);
   }
   await delay();
   return [...mockInquiries];
@@ -74,8 +92,10 @@ export const getInquiries = async () => {
 export const createInquiry = async (inquiry) => {
   try {
     const data = await createContact(inquiry);
-    if (data) return data;
-  } catch {
+    if (data !== null) return data;
+    ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
+  } catch (error) {
+    ensureMockFallback(error);
   }
   await delay();
   return { ...inquiry, id: Date.now(), status: inquiry.status || 'pending' };
@@ -87,8 +107,10 @@ export const adminCreateProduct = async (product) => {
       method: 'POST',
       body: JSON.stringify(product),
     });
-    if (data) return data;
-  } catch {
+    if (data !== null) return data;
+    ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
+  } catch (error) {
+    ensureMockFallback(error);
   }
   await delay();
   return { ...product, id: Date.now() };
@@ -100,8 +122,10 @@ export const adminUpdateProduct = async (id, updates) => {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
-    if (data) return data;
-  } catch {
+    if (data !== null) return data;
+    ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
+  } catch (error) {
+    ensureMockFallback(error);
   }
   await delay();
   return { id, ...updates };
@@ -110,8 +134,10 @@ export const adminUpdateProduct = async (id, updates) => {
 export const adminDeleteProduct = async (id) => {
   try {
     const data = await apiFetch(`/products/${id}`, { method: 'DELETE' });
-    if (data) return data;
-  } catch {
+    if (data !== null) return data;
+    ensureMockFallback(new Error('Backend unavailable and mock fallback disabled'));
+  } catch (error) {
+    ensureMockFallback(error);
   }
   await delay();
   return { success: true };
@@ -203,6 +229,3 @@ export const buildComparisonWhatsAppMessage = (compareProducts = []) => {
     '¿Podrían ayudarme a elegir?',
   ].join('\n');
 };
-
-
-

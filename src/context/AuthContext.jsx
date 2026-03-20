@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { apiFetch } from '../services/api';
+import { apiFetch, ensureApiResponse, isApiUnavailableError } from '../services/api';
+import { formatApiErrorMessage } from '../services/errorUtils';
 
 const AuthContext = createContext();
 
@@ -34,19 +35,24 @@ export function AuthProvider({ children }) {
           password,
         }),
       });
+      const payload = ensureApiResponse(result, '/admin/login');
 
-      if (result?.success && result.token) {
-        localStorage.setItem('industrialpro_token', result.token);
-        setUser(result.user);
-        return { success: true, user: result.user };
+      if (payload.success && payload.token) {
+        localStorage.setItem('industrialpro_token', payload.token);
+        setUser(payload.user);
+        return { success: true, user: payload.user };
       }
 
-      return { success: false, error: result?.error || 'Credenciales incorrectas' };
+      const payloadError = typeof payload.error === 'string' ? payload.error : payload.error?.message;
+      return { success: false, error: payloadError || 'Credenciales incorrectas' };
     } catch (error) {
       if (error.status === 401) {
         return { success: false, error: 'Credenciales incorrectas' };
       }
-      return { success: false, error: 'No se pudo conectar con el servidor' };
+      if (isApiUnavailableError(error)) {
+        return { success: false, error: formatApiErrorMessage(error, 'No se pudo conectar con la API de administración') };
+      }
+      return { success: false, error: formatApiErrorMessage(error, 'No se pudo conectar con el servidor') };
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../data/products';
 import { buildGeneralWhatsAppMessage, generateWhatsAppLink, submitContactForm } from '../services/productService';
+import { isApiUnavailableError } from '../services/api';
+import { formatApiErrorMessage } from '../services/errorUtils';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 
 const CONTACT_EMAIL = 'ventas@industrialpro.com';
@@ -89,8 +91,12 @@ export default function Contact() {
 
       setSubmitted(true);
       setForm({ ...initialForm });
-    } catch {
-      setSubmitError('Hubo un error al enviar tu consulta. Por favor intentá nuevamente.');
+    } catch (error) {
+      if (isApiUnavailableError(error)) {
+        setSubmitError(formatApiErrorMessage(error, 'No se pudo conectar con la API. Intentá nuevamente en unos minutos.'));
+      } else {
+        setSubmitError(formatApiErrorMessage(error, 'Hubo un error al enviar tu consulta. Por favor intentá nuevamente.'));
+      }
     } finally {
       setSubmitting(false);
     }

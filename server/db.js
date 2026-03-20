@@ -74,6 +74,16 @@ export function ensureSchema() {
       status TEXT DEFAULT 'pending',
       source TEXT DEFAULT 'contact_form'
     );
+
+    CREATE TABLE IF NOT EXISTS admin_revoked_tokens (
+      token_hash TEXT PRIMARY KEY,
+      expires_at DATETIME NOT NULL,
+      revoked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku_unique
+      ON products(sku)
+      WHERE sku IS NOT NULL AND TRIM(sku) <> '';
   `);
 }
 

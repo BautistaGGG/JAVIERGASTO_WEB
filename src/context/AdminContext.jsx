@@ -1,31 +1,63 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { products as mockProducts, categories as mockCategories, brands as mockBrands, mockInquiries } from '../data/products';
-import { apiFetch } from '../services/api';
+import { isMockFallbackEnabled } from '../config/runtime.js';
+import { apiFetch, ensureApiResponse, isApiUnavailableError } from '../services/api';
+import { formatApiErrorMessage } from '../services/errorUtils';
 
 const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
-  const [products, setProducts] = useState([...mockProducts]);
-  const [categories, setCategories] = useState([...mockCategories]);
-  const [brands, setBrands] = useState([...mockBrands]);
-  const [inquiries, setInquiries] = useState([...mockInquiries]);
+  const mockFallbackEnabled = isMockFallbackEnabled();
+  const [products, setProducts] = useState(mockFallbackEnabled ? [...mockProducts] : []);
+  const [categories, setCategories] = useState(mockFallbackEnabled ? [...mockCategories] : []);
+  const [brands, setBrands] = useState(mockFallbackEnabled ? [...mockBrands] : []);
+  const [inquiries, setInquiries] = useState(mockFallbackEnabled ? [...mockInquiries] : []);
+  const [apiMetrics, setApiMetrics] = useState(null);
+  const [apiError, setApiError] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  const setUnavailableMessage = () => {
+    setApiError('No se pudo conectar con la API de administración.');
+  };
+
+  const setApiErrorFromError = (error, fallback) => {
+    setApiError(formatApiErrorMessage(error, fallback));
+  };
+
+  const parseInquiryList = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.items)) return payload.items;
+    return [];
+  };
 
   useEffect(() => {
     const loadFromAPI = async () => {
       try {
-        const [prods, cats, brs, inqs] = await Promise.all([
+        const [prods, cats, brs, inqs, metrics] = await Promise.all([
           apiFetch('/products?all=true'),
           apiFetch('/categories'),
           apiFetch('/brands'),
           apiFetch('/contacts').catch(() => null),
+          apiFetch('/admin/metrics').catch(() => null),
         ]);
 
-        if (prods) setProducts(prods);
-        if (cats) setCategories(cats);
-        if (brs) setBrands(brs);
-        if (inqs) setInquiries(inqs);
-      } catch {
+        const safeProducts = ensureApiResponse(prods, '/products?all=true');
+        const safeCategories = ensureApiResponse(cats, '/categories');
+        const safeBrands = ensureApiResponse(brs, '/brands');
+
+        setProducts(safeProducts);
+        setCategories(safeCategories);
+        setBrands(safeBrands);
+        if (inqs !== null) setInquiries(parseInquiryList(inqs));
+        if (metrics !== null) setApiMetrics(metrics);
+        setApiError(null);
+      } catch (error) {
+        if (!mockFallbackEnabled) {
+          console.error('AdminContext: backend unavailable and mock fallback disabled', error);
+          if (isApiUnavailableError(error)) setUnavailableMessage();
+          else setApiErrorFromError(error, 'No se pudo cargar el panel de administración');
+          return;
+        }
         console.warn('AdminContext: backend unavailable, using fallback data');
       } finally {
         setDataLoaded(true);
@@ -42,8 +74,22 @@ export function AdminProvider({ children }) {
         method: 'POST',
         body: JSON.stringify(product),
       });
-      newProduct = result || { ...product, id: Date.now(), isActive: true };
-    } catch {
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+        newProduct = { ...product, id: Date.now(), isActive: true };
+      } else {
+        newProduct = result;
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo crear el producto');
+        return null;
+      }
       newProduct = { ...product, id: Date.now(), isActive: true };
     }
     setProducts((prev) => [newProduct, ...prev]);
@@ -56,11 +102,23 @@ export function AdminProvider({ children }) {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+      }
       if (result) {
+        setApiError(null);
         setProducts((prev) => prev.map((product) => (product.id === id ? result : product)));
         return result;
       }
-    } catch {
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo actualizar el producto');
+        return null;
+      }
     }
 
     setProducts((prev) => prev.map((product) => (product.id === id ? { ...product, ...updates } : product)));
@@ -69,8 +127,21 @@ export function AdminProvider({ children }) {
 
   const deleteProduct = async (id) => {
     try {
-      await apiFetch(`/products/${id}`, { method: 'DELETE' });
-    } catch {
+      const result = await apiFetch(`/products/${id}`, { method: 'DELETE' });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      } else {
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo eliminar el producto');
+        return;
+      }
     }
     setProducts((prev) => prev.filter((product) => product.id !== id));
   };
@@ -100,8 +171,22 @@ export function AdminProvider({ children }) {
         method: 'POST',
         body: JSON.stringify(category),
       });
-      newCategory = result || { ...category, id: Date.now(), slug: category.name.toLowerCase().replace(/\s+/g, '-') };
-    } catch {
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+        newCategory = { ...category, id: Date.now(), slug: category.name.toLowerCase().replace(/\s+/g, '-') };
+      } else {
+        newCategory = result;
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo crear la categoría');
+        return null;
+      }
       newCategory = { ...category, id: Date.now(), slug: category.name.toLowerCase().replace(/\s+/g, '-') };
     }
     setCategories((prev) => [...prev, newCategory]);
@@ -114,22 +199,47 @@ export function AdminProvider({ children }) {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      }
       if (result) {
+        setApiError(null);
         setCategories((prev) => prev.map((category) => (category.id === id ? result : category)));
         setProducts((prev) => prev.map((product) => (
           product.categoryId === id ? { ...product, category: result.name } : product
         )));
         return;
       }
-    } catch {
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo actualizar la categoría');
+        return;
+      }
     }
     setCategories((prev) => prev.map((category) => (category.id === id ? { ...category, ...updates } : category)));
   };
 
   const deleteCategory = async (id) => {
     try {
-      await apiFetch(`/categories/${id}`, { method: 'DELETE' });
-    } catch {
+      const result = await apiFetch(`/categories/${id}`, { method: 'DELETE' });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      } else {
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo eliminar la categoría');
+        return;
+      }
     }
     setCategories((prev) => prev.filter((category) => category.id !== id));
   };
@@ -141,8 +251,22 @@ export function AdminProvider({ children }) {
         method: 'POST',
         body: JSON.stringify(brand),
       });
-      newBrand = result || { ...brand, id: Date.now(), isActive: true };
-    } catch {
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+        newBrand = { ...brand, id: Date.now(), isActive: true };
+      } else {
+        newBrand = result;
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo crear la marca');
+        return null;
+      }
       newBrand = { ...brand, id: Date.now(), isActive: true };
     }
     setBrands((prev) => [...prev, newBrand]);
@@ -155,22 +279,47 @@ export function AdminProvider({ children }) {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      }
       if (result) {
+        setApiError(null);
         setBrands((prev) => prev.map((brand) => (brand.id === id ? result : brand)));
         setProducts((prev) => prev.map((product) => (
           product.brandId === id ? { ...product, brand: result.name } : product
         )));
         return;
       }
-    } catch {
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo actualizar la marca');
+        return;
+      }
     }
     setBrands((prev) => prev.map((brand) => (brand.id === id ? { ...brand, ...updates } : brand)));
   };
 
   const deleteBrand = async (id) => {
     try {
-      await apiFetch(`/brands/${id}`, { method: 'DELETE' });
-    } catch {
+      const result = await apiFetch(`/brands/${id}`, { method: 'DELETE' });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      } else {
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo eliminar la marca');
+        return;
+      }
     }
     setBrands((prev) => prev.filter((brand) => brand.id !== id));
   };
@@ -182,8 +331,22 @@ export function AdminProvider({ children }) {
         method: 'POST',
         body: JSON.stringify(inquiry),
       });
-      newInquiry = result || { ...inquiry, id: inquiry.id || Date.now(), status: inquiry.status || 'pending' };
-    } catch {
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+        newInquiry = { ...inquiry, id: inquiry.id || Date.now(), status: inquiry.status || 'pending' };
+      } else {
+        newInquiry = result;
+        setApiError(null);
+      }
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo crear la consulta');
+        return null;
+      }
       newInquiry = { ...inquiry, id: inquiry.id || Date.now(), status: inquiry.status || 'pending' };
     }
     setInquiries((prev) => [newInquiry, ...prev]);
@@ -196,11 +359,23 @@ export function AdminProvider({ children }) {
         method: 'PUT',
         body: JSON.stringify({ status }),
       });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return;
+        }
+      }
       if (result) {
+        setApiError(null);
         setInquiries((prev) => prev.map((inquiry) => (inquiry.id === id ? result : inquiry)));
         return;
       }
-    } catch {
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo actualizar la consulta');
+        return;
+      }
     }
     setInquiries((prev) => prev.map((inquiry) => (inquiry.id === id ? { ...inquiry, status } : inquiry)));
   };
@@ -238,6 +413,8 @@ export function AdminProvider({ children }) {
         addInquiry,
         updateInquiryStatus,
         getStats,
+        apiMetrics,
+        apiError,
         dataLoaded,
       }}
     >
