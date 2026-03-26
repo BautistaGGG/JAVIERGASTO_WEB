@@ -1,13 +1,15 @@
-﻿import { useState, useRef, useEffect } from 'react';
-import { Share2, Link2, Check, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Share2, Link2, Check } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../data/products';
-import { buildShareProductWhatsAppMessage, generateWhatsAppLink } from '../services/productService';
+import { buildShareProductWhatsAppMessage, openTrackedWhatsApp } from '../services/productService';
 import WhatsAppIcon from './WhatsAppIcon';
+import { useToast } from '../context/ToastContext';
 
 export default function ShareButton({ product, variant = 'icon' }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef(null);
+  const { addToast } = useToast();
 
   const productUrl = `${window.location.origin}/producto/${product.id}`;
 
@@ -25,17 +27,23 @@ export default function ShareButton({ product, variant = 'icon' }) {
     try {
       await navigator.clipboard.writeText(productUrl);
       setCopied(true);
+      addToast('Enlace copiado al portapapeles.', 'success');
       setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
     } catch {
-      // Fallback
-      const ta = document.createElement('textarea');
-      ta.value = productUrl;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = productUrl;
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('copy_failed');
+        setCopied(true);
+        addToast('Enlace copiado al portapapeles.', 'success');
+        setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
+      } catch {
+        addToast('No se pudo copiar el enlace. Probá de nuevo.', 'error');
+      }
     }
   };
 
@@ -43,7 +51,13 @@ export default function ShareButton({ product, variant = 'icon' }) {
     e.preventDefault();
     e.stopPropagation();
     const msg = buildShareProductWhatsAppMessage({ name: product.name, productUrl });
-    window.open(generateWhatsAppLink(WHATSAPP_NUMBER, msg), '_blank');
+    openTrackedWhatsApp({
+      phone: WHATSAPP_NUMBER,
+      message: msg,
+      source: 'share_button',
+      metadata: { productId: product.id },
+    });
+    addToast(`Abriendo WhatsApp para compartir ${product.name}.`, 'info');
     setOpen(false);
   };
 
@@ -58,29 +72,29 @@ export default function ShareButton({ product, variant = 'icon' }) {
       <div className="relative" ref={ref}>
         <button
           onClick={toggleOpen}
-          className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-all btn-press"
+          className="flex items-center gap-2 px-4 py-2.5 border border-zinc-700 rounded-xl text-sm font-semibold text-zinc-200 hover:bg-zinc-800 transition-all btn-press"
         >
           <Share2 size={16} />
           Compartir
         </button>
 
         {open && (
-          <div className="absolute bottom-full mb-2 right-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 min-w-[200px] z-50 animate-fade-in-up">
+          <div className="absolute bottom-full mb-2 right-0 bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 p-2 min-w-[200px] z-50 animate-fade-in-up">
             <button
               onClick={handleCopy}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-left"
             >
-              {copied ? <Check size={16} className="text-green-600" /> : <Link2 size={16} className="text-gray-500" />}
-              <span className="text-sm font-medium text-gray-700">
-                {copied ? '?Link copiado!' : 'Copiar enlace'}
+              {copied ? <Check size={16} className="text-zinc-200" /> : <Link2 size={16} className="text-zinc-500" />}
+              <span className="text-sm font-medium text-zinc-200">
+                {copied ? 'Link copiado' : 'Copiar enlace'}
               </span>
             </button>
             <button
               onClick={handleWhatsApp}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-green-950/40 transition-colors text-left"
             >
-              <WhatsAppIcon size={16} className="text-green-600" />
-              <span className="text-sm font-medium text-gray-700">Enviar por WhatsApp</span>
+              <WhatsAppIcon size={16} />
+              <span className="text-sm font-medium text-green-300">Enviar por WhatsApp</span>
             </button>
           </div>
         )}
@@ -93,34 +107,35 @@ export default function ShareButton({ product, variant = 'icon' }) {
     <div className="relative" ref={ref}>
       <button
         onClick={toggleOpen}
-        className="p-2 rounded-lg bg-white/90 text-gray-600 hover:bg-blue-600 hover:text-white shadow-lg transition-all"
+        className="p-2 rounded-lg bg-zinc-900/90 text-zinc-300 hover:bg-red-600 hover:text-white shadow-lg transition-all"
         title="Compartir producto"
       >
         <Share2 size={16} />
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 right-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 min-w-[180px] z-50 animate-fade-in-up">
+        <div className="absolute bottom-full mb-2 right-0 bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 p-1.5 min-w-[180px] z-50 animate-fade-in-up">
           <button
             onClick={handleCopy}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-left"
           >
-            {copied ? <Check size={14} className="text-green-600" /> : <Link2 size={14} className="text-gray-500" />}
-            <span className="text-xs font-medium text-gray-700">
-              {copied ? '?Copiado!' : 'Copiar enlace'}
+            {copied ? <Check size={14} className="text-zinc-200" /> : <Link2 size={14} className="text-zinc-500" />}
+            <span className="text-xs font-medium text-zinc-200">
+              {copied ? 'Copiado' : 'Copiar enlace'}
             </span>
           </button>
           <button
             onClick={handleWhatsApp}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-green-50 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-green-950/40 transition-colors text-left"
           >
-            <WhatsAppIcon size={14} className="text-green-600" />
-            <span className="text-xs font-medium text-gray-700">Enviar por WhatsApp</span>
+            <WhatsAppIcon size={14} />
+            <span className="text-xs font-medium text-green-300">Enviar por WhatsApp</span>
           </button>
         </div>
       )}
     </div>
   );
 }
+
 
 

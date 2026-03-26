@@ -2,6 +2,7 @@
 import { createContact, getContacts, submitContactForm, updateContactStatus } from './contactService.js';
 import { isMockFallbackEnabled } from '../config/runtime.js';
 import { products, categories, brands, mockInquiries } from '../data/products.js';
+import { trackWhatsAppClick } from './trackingService.js';
 
 const delay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -150,14 +151,21 @@ export const generateWhatsAppLink = (phone, message) => {
   return `https://wa.me/${phone}?text=${encoded}`;
 };
 
+export const openTrackedWhatsApp = ({ phone, message, source, metadata = {} }) => {
+  const href = generateWhatsAppLink(phone, message);
+  void trackWhatsAppClick(source, metadata);
+  window.open(href, '_blank', 'noopener,noreferrer');
+  return href;
+};
+
 const cleanText = (value) => String(value ?? '').trim();
 
 export const buildGeneralWhatsAppMessage = (context = 'default') => {
   const messages = {
-    default: 'Hola, quiero consultar sobre sus productos industriales. ¿Podrían asesorarme?',
-    browsing: 'Hola, estoy navegando su catálogo online y me gustaría hacer una consulta.',
-    contact: 'Hola, quiero hacer una consulta sobre sus productos industriales. ¿Podrían asesorarme?',
-    catalog_help: 'Hola, necesito ayuda para encontrar un producto en su catálogo.',
+    default: 'Hola, quiero consultar sobre sus productos industriales. \u00BFPodr\u00EDan asesorarme?',
+    browsing: 'Hola, estoy navegando su cat\u00E1logo online y me gustar\u00EDa hacer una consulta.',
+    contact: 'Hola, quiero hacer una consulta sobre sus productos industriales. \u00BFPodr\u00EDan asesorarme?',
+    catalog_help: 'Hola, necesito ayuda para encontrar un producto en su cat\u00E1logo.',
   };
 
   return messages[context] || messages.default;
@@ -178,7 +186,7 @@ export const buildProductInquiryWhatsAppMessage = ({ name, sku, priceText, quant
       `Precio: ${safePrice}`,
       `Cantidad: ${safeQty}`,
       '',
-      '¿Podrían darme más información?',
+      '\u00BFPodr\u00EDan darme m\u00E1s informaci\u00F3n?',
     ].join('\n');
   }
 
@@ -188,8 +196,8 @@ export const buildProductInquiryWhatsAppMessage = ({ name, sku, priceText, quant
 export const buildShareProductWhatsAppMessage = ({ name, productUrl } = {}) => {
   const safeName = cleanText(name) || 'este producto';
   const safeUrl = cleanText(productUrl);
-  if (!safeUrl) return `Mirá este producto: *${safeName}*`;
-  return `Mirá este producto: *${safeName}*\n${safeUrl}`;
+  if (!safeUrl) return `Mira este producto: *${safeName}*`;
+  return `Mira este producto: *${safeName}*\n${safeUrl}`;
 };
 
 export const buildCartQuoteWhatsAppMessage = ({ items = [], formatPrice }) => {
@@ -199,7 +207,7 @@ export const buildCartQuoteWhatsAppMessage = ({ items = [], formatPrice }) => {
     .map((item) => {
       const quantity = Number(item.quantity) || 0;
       const lineTotal = (Number(item.price) || 0) * quantity;
-      return `• ${cleanText(item.name) || 'Producto'} x${quantity} - ${formatter(lineTotal)}`;
+      return `- ${cleanText(item.name) || 'Producto'} x${quantity} - ${formatter(lineTotal)}`;
     })
     .join('\n');
 
@@ -212,20 +220,20 @@ export const buildCartQuoteWhatsAppMessage = ({ items = [], formatPrice }) => {
     '',
     `Total estimado: ${formatter(total)}`,
     '',
-    'Aguardo su respuesta. ¡Gracias!',
+    'Aguardo su respuesta. \u00A1Gracias!',
   ].join('\n');
 };
 
 export const buildComparisonWhatsAppMessage = (compareProducts = []) => {
   const names = compareProducts
-    .map((product) => `• ${cleanText(product?.name) || 'Producto'}`)
+    .map((product) => `- ${cleanText(product?.name) || 'Producto'}`)
     .join('\n');
 
   return [
     'Hola, estoy comparando estos productos y necesito asesoramiento:',
     '',
-    names || '• Sin productos',
+    names || '- Sin productos',
     '',
-    '¿Podrían ayudarme a elegir?',
+    '\u00BFPodr\u00EDan ayudarme a elegir?',
   ].join('\n');
 };

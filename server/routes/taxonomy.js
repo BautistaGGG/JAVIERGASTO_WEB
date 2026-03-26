@@ -4,6 +4,7 @@ import { requireAdmin } from '../auth.js';
 import { handleUnexpectedError, sendError } from '../http.js';
 import { logInfo } from '../logger.js';
 import { validateBrandPayload, validateCategoryPayload } from '../validators.js';
+import { addAuditEvent } from '../auditLog.js';
 
 const router = Router();
 
@@ -33,6 +34,14 @@ router.post('/categories', requireAdmin, (req, res) => {
 
     const row = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
     logInfo('admin_category_create', { requestId: req.requestId, user: req.user?.email, categoryId: row?.id });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'category.create',
+      entity: 'category',
+      entityId: row?.id,
+      detail: `Categoría creada: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
     return res.status(201).json(formatCategory(row));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'categories_create');
@@ -64,6 +73,14 @@ router.put('/categories/:id', requireAdmin, (req, res) => {
 
     const row = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
     logInfo('admin_category_update', { requestId: req.requestId, user: req.user?.email, categoryId: row?.id });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'category.update',
+      entity: 'category',
+      entityId: row?.id,
+      detail: `Categoría actualizada: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
     return res.json(formatCategory(row));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'categories_update');
@@ -72,9 +89,41 @@ router.put('/categories/:id', requireAdmin, (req, res) => {
 
 router.delete('/categories/:id', requireAdmin, (req, res) => {
   try {
-    db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+    const categoryId = Number(req.params.id);
+    const current = db.prepare('SELECT id, name FROM categories WHERE id = ?').get(categoryId);
+    if (!current) return sendError(res, req, 404, 'NOT_FOUND', 'Categoria no encontrada');
+
+    const totalCategories = db.prepare('SELECT COUNT(*) AS total FROM categories').get()?.total || 0;
+    if (totalCategories <= 1) {
+      return sendError(res, req, 409, 'CATEGORY_LAST_ONE', 'No podes eliminar la ultima categoria');
+    }
+
+    const fallback = db.prepare('SELECT id, name FROM categories WHERE id != ? ORDER BY id ASC LIMIT 1').get(categoryId);
+    if (!fallback) {
+      return sendError(res, req, 409, 'CATEGORY_NO_FALLBACK', 'No se encontro una categoria de reemplazo');
+    }
+
+    const updated = db.prepare(`
+      UPDATE products
+      SET category_id = ?, category = ?
+      WHERE category_id = ?
+    `).run(fallback.id, fallback.name, categoryId);
+
+    db.prepare('DELETE FROM categories WHERE id = ?').run(categoryId);
     logInfo('admin_category_delete', { requestId: req.requestId, user: req.user?.email, categoryId: Number(req.params.id) });
-    return res.json({ success: true });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'category.delete',
+      entity: 'category',
+      entityId: Number(req.params.id),
+      detail: `Categoría eliminada: ${req.params.id}. Productos reasignados a ${fallback.name}: ${updated?.changes || 0}`,
+      requestId: req.requestId,
+    });
+    return res.json({
+      success: true,
+      reassignedTo: formatCategory(db.prepare('SELECT * FROM categories WHERE id = ?').get(fallback.id)),
+      reassignedProducts: updated?.changes || 0,
+    });
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'categories_delete');
   }
@@ -99,6 +148,14 @@ router.post('/brands', requireAdmin, (req, res) => {
     const result = db.prepare('INSERT INTO brands (name, active) VALUES (?, 1)').run(name.trim());
     const row = db.prepare('SELECT * FROM brands WHERE id = ?').get(result.lastInsertRowid);
     logInfo('admin_brand_create', { requestId: req.requestId, user: req.user?.email, brandId: row?.id });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'brand.create',
+      entity: 'brand',
+      entityId: row?.id,
+      detail: `Marca creada: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
     return res.status(201).json(formatBrand(row));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'brands_create');
@@ -128,6 +185,14 @@ router.put('/brands/:id', requireAdmin, (req, res) => {
 
     const row = db.prepare('SELECT * FROM brands WHERE id = ?').get(req.params.id);
     logInfo('admin_brand_update', { requestId: req.requestId, user: req.user?.email, brandId: row?.id });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'brand.update',
+      entity: 'brand',
+      entityId: row?.id,
+      detail: `Marca actualizada: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
     return res.json(formatBrand(row));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'brands_update');
@@ -138,6 +203,14 @@ router.delete('/brands/:id', requireAdmin, (req, res) => {
   try {
     db.prepare('DELETE FROM brands WHERE id = ?').run(req.params.id);
     logInfo('admin_brand_delete', { requestId: req.requestId, user: req.user?.email, brandId: Number(req.params.id) });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'brand.delete',
+      entity: 'brand',
+      entityId: Number(req.params.id),
+      detail: `Marca eliminada: ${req.params.id}`,
+      requestId: req.requestId,
+    });
     return res.json({ success: true });
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'brands_delete');

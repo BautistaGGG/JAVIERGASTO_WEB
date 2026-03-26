@@ -312,6 +312,22 @@ const tests = [
         });
         assert.equal(productUpdate.response.status, 200);
 
+        const hidePriceUpdate = await requestJson(`/products/${productCreate.payload.id}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ showPrice: false }),
+        });
+        assert.equal(hidePriceUpdate.response.status, 200);
+        assert.equal(hidePriceUpdate.payload.showPrice, false);
+
+        const showPriceUpdate = await requestJson(`/products/${productCreate.payload.id}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ showPrice: true }),
+        });
+        assert.equal(showPriceUpdate.response.status, 200);
+        assert.equal(showPriceUpdate.payload.showPrice, true);
+
         const contactUpdate = await requestJson(`/contacts/${contactCreate.payload.id}/status`, {
           method: 'PUT',
           headers: authHeaders,
@@ -347,6 +363,19 @@ const tests = [
         assert.equal(unknownEndpoint.response.status, 404);
         assert.ok(unknownEndpoint.payload.error?.requestId);
 
+        const categoryDelete = await requestJson(`/categories/${categoryCreate.payload.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${login.payload.token}` },
+        });
+        assert.equal(categoryDelete.response.status, 200);
+        assert.equal(categoryDelete.payload.success, true);
+        assert.ok(categoryDelete.payload.reassignedTo?.id);
+
+        const productAfterCategoryDelete = await requestJson(`/products/${productCreate.payload.id}`);
+        assert.equal(productAfterCategoryDelete.response.status, 200);
+        assert.equal(productAfterCategoryDelete.payload.categoryId, categoryDelete.payload.reassignedTo.id);
+        assert.equal(productAfterCategoryDelete.payload.category, categoryDelete.payload.reassignedTo.name);
+
         assert.equal((await requestJson(`/products/${productCreate.payload.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${login.payload.token}` },
@@ -357,10 +386,25 @@ const tests = [
           headers: { Authorization: `Bearer ${login.payload.token}` },
         })).response.status, 200);
 
-        assert.equal((await requestJson(`/categories/${categoryCreate.payload.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${login.payload.token}` },
-        })).response.status, 200);
+        const currentCategories = await requestJson('/categories');
+        assert.equal(currentCategories.response.status, 200);
+        assert.ok(Array.isArray(currentCategories.payload));
+        const categoryIds = currentCategories.payload.map((item) => item.id);
+        if (categoryIds.length >= 2) {
+          const keepId = categoryIds[categoryIds.length - 1];
+          const toDelete = categoryIds.filter((id) => id !== keepId);
+          for (const categoryId of toDelete) {
+            assert.equal((await requestJson(`/categories/${categoryId}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${login.payload.token}` },
+            })).response.status, 200);
+          }
+          const deleteLastCategoryAttempt = await requestJson(`/categories/${keepId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${login.payload.token}` },
+          });
+          assert.equal(deleteLastCategoryAttempt.response.status, 409);
+        }
 
         assert.equal((await requestJson('/admin/logout', {
           method: 'POST',

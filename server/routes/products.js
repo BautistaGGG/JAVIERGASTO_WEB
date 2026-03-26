@@ -4,13 +4,16 @@ import { requireAdmin } from '../auth.js';
 import { handleUnexpectedError, sendError } from '../http.js';
 import { logInfo } from '../logger.js';
 import { validateProductPayload } from '../validators.js';
+import { addAuditEvent } from '../auditLog.js';
+import { getProductById, listProducts } from '../repositories/productRepository.js';
 
 const router = Router();
 
 const PRODUCT_COLUMNS = [
   'name', 'description', 'price', 'stock', 'category', 'brand', 'image_url', 'featured', 'active',
-  'category_id', 'brand_id', 'specs', 'images', 'sku', 'badge', 'stock_status',
+  'category_id', 'brand_id', 'specs', 'images', 'sku', 'badge', 'stock_status', 'show_price',
 ];
+const MAX_VERSION_HISTORY = 20;
 
 const createSlug = (value = '') =>
   value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -115,59 +118,114 @@ function normalizeProductInput(input = {}) {
     sku: input.sku || '',
     badge: input.badge || null,
     stock_status: input.stock_status || input.stockStatus || 'in_stock',
+    show_price: input.show_price !== undefined
+      ? (input.show_price ? 1 : 0)
+      : (input.showPrice !== undefined ? (input.showPrice ? 1 : 0) : 1),
   };
+}
+
+function extractAdminMeta(specs) {
+  const source = specs && typeof specs === 'object' ? specs : {};
+  const meta = source.__admin && typeof source.__admin === 'object' ? source.__admin : {};
+  return {
+    publishStatus: ['draft', 'published', 'archived'].includes(meta.publishStatus) ? meta.publishStatus : null,
+    version: Number(meta.version || 1),
+    versions: Array.isArray(meta.versions) ? meta.versions : [],
+    updatedAt: meta.updatedAt || null,
+    updatedBy: meta.updatedBy || null,
+  };
+}
+
+function stripAdminSpec(specs) {
+  if (!specs || typeof specs !== 'object' || Array.isArray(specs)) return {};
+  const clone = { ...specs };
+  delete clone.__admin;
+  return clone;
+}
+
+function withAdminSpec(specs, adminMeta) {
+  return {
+    ...stripAdminSpec(specs),
+    __admin: {
+      publishStatus: adminMeta.publishStatus,
+      version: Number(adminMeta.version || 1),
+      versions: Array.isArray(adminMeta.versions) ? adminMeta.versions.slice(0, MAX_VERSION_HISTORY) : [],
+      updatedAt: adminMeta.updatedAt || new Date().toISOString(),
+      updatedBy: adminMeta.updatedBy || null,
+    },
+  };
+}
+
+function resolvePublishStatus(payload = {}, fallbackStatus = 'published') {
+  const candidate = payload.publishStatus || payload.status;
+  if (candidate === 'draft' || candidate === 'published' || candidate === 'archived') return candidate;
+  return fallbackStatus;
+}
+
+function buildVersionSnapshot(product, reason = 'update') {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description || '',
+    price: Number(product.price || 0),
+    stock: Number(product.stock || 0),
+    category: product.category || '',
+    brand: product.brand || '',
+    image: product.image || product.image_url || '',
+    categoryId: product.categoryId ?? null,
+    brandId: product.brandId ?? null,
+    sku: product.sku || '',
+    badge: product.badge || null,
+    stockStatus: product.stockStatus || 'in_stock',
+    showPrice: product.showPrice !== false,
+    isFeatured: Boolean(product.isFeatured ?? product.featured),
+    isActive: Boolean(product.isActive ?? product.active),
+    publishStatus: product.publishStatus || (Boolean(product.isActive ?? product.active) ? 'published' : 'draft'),
+    specs: stripAdminSpec(product.specs),
+    images: Array.isArray(product.images) ? product.images : [],
+    savedAt: new Date().toISOString(),
+    reason,
+  };
+}
+
+function buildManagedPayload(inputPayload, existingProduct, actor, reason = 'update') {
+  const existingMeta = extractAdminMeta(existingProduct?.specs);
+  const fallbackStatus = existingMeta.publishStatus || (existingProduct?.isActive ? 'published' : 'draft');
+  const merged = existingProduct ? { ...existingProduct, ...inputPayload } : { ...inputPayload };
+  const publishStatus = resolvePublishStatus(inputPayload, fallbackStatus);
+  merged.publishStatus = publishStatus;
+  merged.isActive = publishStatus === 'published';
+  merged.active = publishStatus === 'published';
+
+  const nextVersions = [...existingMeta.versions];
+  if (existingProduct) {
+    nextVersions.unshift(buildVersionSnapshot(existingProduct, reason));
+  }
+
+  const nextMeta = {
+    publishStatus,
+    version: existingProduct ? Number(existingMeta.version || 1) + 1 : 1,
+    versions: nextVersions.slice(0, MAX_VERSION_HISTORY),
+    updatedAt: new Date().toISOString(),
+    updatedBy: actor || null,
+  };
+
+  merged.specs = withAdminSpec(merged.specs || {}, nextMeta);
+  return merged;
 }
 
 router.get('/', (req, res) => {
   try {
-    const { all, featured, category, brand, search } = req.query;
-    const conditions = [];
-    const params = [];
-    let sql = 'SELECT * FROM products';
-
-    if (all !== 'true') conditions.push('active = 1');
-    if (featured === 'true') conditions.push('featured = 1');
-
-    if (category) {
-      if (/^\d+$/.test(String(category))) {
-        conditions.push('category_id = ?');
-        params.push(Number(category));
-      } else {
-        conditions.push('category = ?');
-        params.push(String(category));
-      }
-    }
-
-    if (brand) {
-      if (/^\d+$/.test(String(brand))) {
-        conditions.push('brand_id = ?');
-        params.push(Number(brand));
-      } else {
-        conditions.push('brand = ?');
-        params.push(String(brand));
-      }
-    }
-
-    if (search) {
-      const term = `%${String(search).trim()}%`;
-      conditions.push('(name LIKE ? OR description LIKE ? OR category LIKE ? OR brand LIKE ? OR sku LIKE ?)');
-      params.push(term, term, term, term, term);
-    }
-
-    if (conditions.length) sql += ` WHERE ${conditions.join(' AND ')}`;
-    sql += ' ORDER BY created_at DESC, id DESC';
-
-    const rows = db.prepare(sql).all(...params);
-    return res.json(rows.map(formatProduct));
+    return res.json(listProducts(req.query || {}));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'products_list');
   }
 });
 
 router.get('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
-  if (!row) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
-  return res.json(formatProduct(row));
+  const product = getProductById(req.params.id);
+  if (!product) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
+  return res.json(product);
 });
 
 router.post('/', requireAdmin, (req, res) => {
@@ -182,7 +240,8 @@ router.post('/', requireAdmin, (req, res) => {
   }
 
   try {
-    const payload = normalizeProductInput(req.body);
+    const managed = buildManagedPayload(req.body, null, req.user?.email || null, 'create');
+    const payload = normalizeProductInput(managed);
     const placeholders = PRODUCT_COLUMNS.map((column) => `@${column}`).join(', ');
     const result = db.prepare(`
       INSERT INTO products (${PRODUCT_COLUMNS.join(', ')})
@@ -194,6 +253,14 @@ router.post('/', requireAdmin, (req, res) => {
       requestId: req.requestId,
       user: req.user?.email,
       productId: row?.id,
+    });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'product.create',
+      entity: 'product',
+      entityId: row?.id,
+      detail: `Producto creado: ${row?.name || row?.id}`,
+      requestId: req.requestId,
     });
     return res.status(201).json(formatProduct(row));
   } catch (error) {
@@ -211,15 +278,18 @@ router.put('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!existing) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
 
+    const existingProduct = formatProduct(existing);
+    const managed = buildManagedPayload(req.body, existingProduct, req.user?.email || null);
+
     const relationErrors = validateProductRelations(
-      { ...formatProduct(existing), ...req.body },
+      managed,
       { existingId: Number(req.params.id) }
     );
     if (relationErrors.length > 0) {
       return sendError(res, req, 400, 'VALIDATION_ERROR', relationErrors.join('. '));
     }
 
-    const normalized = normalizeProductInput({ ...formatProduct(existing), ...req.body });
+    const normalized = normalizeProductInput(managed);
     const updates = [];
     const values = [];
 
@@ -229,7 +299,8 @@ router.put('/:id', requireAdmin, (req, res) => {
         (column === 'image_url' && Object.prototype.hasOwnProperty.call(req.body, 'image')) ||
         (column === 'featured' && Object.prototype.hasOwnProperty.call(req.body, 'isFeatured')) ||
         (column === 'active' && Object.prototype.hasOwnProperty.call(req.body, 'isActive')) ||
-        (column === 'stock_status' && Object.prototype.hasOwnProperty.call(req.body, 'stockStatus'));
+        (column === 'stock_status' && Object.prototype.hasOwnProperty.call(req.body, 'stockStatus')) ||
+        (column === 'show_price' && Object.prototype.hasOwnProperty.call(req.body, 'showPrice'));
 
       if (provided) {
         updates.push(`${column} = ?`);
@@ -249,6 +320,14 @@ router.put('/:id', requireAdmin, (req, res) => {
       productId: row?.id,
       updatedFields: updates.map((item) => item.split(' = ')[0]),
     });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'product.update',
+      entity: 'product',
+      entityId: row?.id,
+      detail: `Producto actualizado: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
     return res.json(formatProduct(row));
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'products_update');
@@ -257,7 +336,7 @@ router.put('/:id', requireAdmin, (req, res) => {
 
 router.delete('/:id', requireAdmin, (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+    const existing = db.prepare('SELECT id, name FROM products WHERE id = ?').get(req.params.id);
     if (!existing) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
 
     db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
@@ -266,9 +345,63 @@ router.delete('/:id', requireAdmin, (req, res) => {
       user: req.user?.email,
       productId: Number(req.params.id),
     });
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'product.delete',
+      entity: 'product',
+      entityId: Number(req.params.id),
+      detail: `Producto eliminado: ${existing?.name || req.params.id}`,
+      requestId: req.requestId,
+    });
     return res.json({ success: true });
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'products_delete');
+  }
+});
+
+router.post('/:id/restore-previous', requireAdmin, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    if (!existing) return sendError(res, req, 404, 'NOT_FOUND', 'Producto no encontrado');
+
+    const existingProduct = formatProduct(existing);
+    const existingMeta = extractAdminMeta(existingProduct.specs);
+    const [previous, ...rest] = existingMeta.versions;
+    if (!previous) return sendError(res, req, 400, 'VALIDATION_ERROR', 'No hay versiones anteriores para restaurar');
+
+    const restored = buildManagedPayload(
+      {
+        ...previous,
+        specs: previous.specs || {},
+        images: previous.images || existingProduct.images || [],
+        publishStatus: previous.publishStatus || 'draft',
+      },
+      existingProduct,
+      req.user?.email || null,
+      'restore_previous'
+    );
+
+    const restoredMeta = extractAdminMeta(restored.specs);
+    restored.specs = withAdminSpec(restored.specs, { ...restoredMeta, versions: rest });
+    const normalized = normalizeProductInput(restored);
+
+    const updateColumns = PRODUCT_COLUMNS.map((column) => `${column} = ?`).join(', ');
+    const values = PRODUCT_COLUMNS.map((column) => normalized[column]);
+    values.push(req.params.id);
+    db.prepare(`UPDATE products SET ${updateColumns} WHERE id = ?`).run(...values);
+
+    const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'product.restore_previous',
+      entity: 'product',
+      entityId: row?.id,
+      detail: `Producto restaurado a versión anterior: ${row?.name || row?.id}`,
+      requestId: req.requestId,
+    });
+    return res.json(formatProduct(row));
+  } catch (error) {
+    return handleUnexpectedError(error, req, res, 'products_restore_previous');
   }
 });
 

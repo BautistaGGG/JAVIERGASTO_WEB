@@ -1,4 +1,5 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+Ôªøconst EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[\d\s\-+()]{7,20}$/;
 
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const isValidEmail = (value) => typeof value === 'string' && EMAIL_REGEX.test(value.trim());
@@ -9,7 +10,7 @@ export function validateAdminLogin(payload = {}) {
   const username = payload.username || payload.email;
 
   if (!isNonEmptyString(username)) errors.push('El usuario es obligatorio');
-  if (!isNonEmptyString(payload.password)) errors.push('La contraseÒa es obligatoria');
+  if (!isNonEmptyString(payload.password)) errors.push('La contrase√±a es obligatoria');
 
   return errors;
 }
@@ -22,7 +23,7 @@ export function validateProductPayload(payload = {}, { partial = false } = {}) {
   }
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, 'price')) {
-    if (!isValidNumber(payload.price) || Number(payload.price) < 0) errors.push('El precio debe ser un n˙mero v·lido mayor o igual a 0');
+    if (!isValidNumber(payload.price) || Number(payload.price) < 0) errors.push('El precio debe ser un n√∫mero v√°lido mayor o igual a 0');
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, 'stock')) {
@@ -30,16 +31,23 @@ export function validateProductPayload(payload = {}, { partial = false } = {}) {
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, 'category') && !isNonEmptyString(payload.category)) {
-    errors.push('La categorÌa no puede estar vacÌa');
+    errors.push('La categor√≠a no puede estar vac√≠a');
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, 'brand') && !isNonEmptyString(payload.brand)) {
-    errors.push('La marca no puede estar vacÌa');
+    errors.push('La marca no puede estar vac√≠a');
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, 'stockStatus')) {
     const allowed = ['in_stock', 'low_stock', 'out_of_stock', 'on_order'];
-    if (!allowed.includes(payload.stockStatus)) errors.push('El estado de stock no es v·lido');
+    if (!allowed.includes(payload.stockStatus)) errors.push('El estado de stock no es v√°lido');
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(payload, 'showPrice') &&
+    typeof payload.showPrice !== 'boolean'
+  ) {
+    errors.push('El valor de mostrar precio debe ser booleano');
   }
 
   return errors;
@@ -48,26 +56,41 @@ export function validateProductPayload(payload = {}, { partial = false } = {}) {
 export function validateContactPayload(payload = {}) {
   const errors = [];
 
-  if (!isNonEmptyString(payload.name)) errors.push('El nombre es obligatorio');
-  if (!isValidEmail(payload.email)) errors.push('El email no es v·lido');
-  if (!isNonEmptyString(payload.message) || payload.message.trim().length < 10) errors.push('El mensaje debe tener al menos 10 caracteres');
+  const name = String(payload.name || '').trim();
+  const email = String(payload.email || '').trim();
+  const message = String(payload.message || '').trim();
+  const phone = payload.phone !== undefined && payload.phone !== null ? String(payload.phone).trim() : '';
+  const subject = payload.subject !== undefined && payload.subject !== null ? String(payload.subject).trim() : '';
+  const honeypot = payload.website !== undefined && payload.website !== null ? String(payload.website).trim() : '';
 
-  if (payload.phone !== undefined && payload.phone !== null && payload.phone !== '') {
-    const sanitized = String(payload.phone).trim();
-    if (sanitized.length < 7) errors.push('El telÈfono no es v·lido');
+  if (honeypot.length > 0) errors.push('Solicitud inv√°lida');
+
+  if (!isNonEmptyString(name)) errors.push('El nombre es obligatorio');
+  if (name.length > 120) errors.push('El nombre excede el m√°ximo permitido');
+
+  if (!isValidEmail(email)) errors.push('El email no es v√°lido');
+  if (email.length > 254) errors.push('El email excede el m√°ximo permitido');
+
+  if (!isNonEmptyString(message) || message.length < 10) errors.push('El mensaje debe tener al menos 10 caracteres');
+  if (message.length > 2000) errors.push('El mensaje excede el m√°ximo permitido');
+
+  if (phone && !PHONE_REGEX.test(phone)) {
+    errors.push('El tel√©fono no es v√°lido');
   }
+
+  if (subject.length > 120) errors.push('El asunto excede el m√°ximo permitido');
 
   return errors;
 }
 
 export function validateInquiryStatus(status) {
-  return ['pending', 'replied'].includes(status) ? [] : ['El estado de la consulta no es v·lido'];
+  return ['pending', 'replied'].includes(status) ? [] : ['El estado de la consulta no es v√°lido'];
 }
 
 export function validateCategoryPayload(payload = {}, { partial = false } = {}) {
   const errors = [];
   if (!partial || Object.prototype.hasOwnProperty.call(payload, 'name')) {
-    if (!isNonEmptyString(payload.name)) errors.push('El nombre de la categorÌa es obligatorio');
+    if (!isNonEmptyString(payload.name)) errors.push('El nombre de la categor√≠a es obligatorio');
   }
   return errors;
 }

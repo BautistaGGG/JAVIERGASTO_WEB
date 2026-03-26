@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 import { products as mockProducts, categories as mockCategories, brands as mockBrands, mockInquiries } from '../data/products';
 import { isMockFallbackEnabled } from '../config/runtime.js';
 import { apiFetch, ensureApiResponse, isApiUnavailableError } from '../services/api';
@@ -7,17 +9,42 @@ import { formatApiErrorMessage } from '../services/errorUtils';
 const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   const mockFallbackEnabled = isMockFallbackEnabled();
   const [products, setProducts] = useState(mockFallbackEnabled ? [...mockProducts] : []);
   const [categories, setCategories] = useState(mockFallbackEnabled ? [...mockCategories] : []);
   const [brands, setBrands] = useState(mockFallbackEnabled ? [...mockBrands] : []);
   const [inquiries, setInquiries] = useState(mockFallbackEnabled ? [...mockInquiries] : []);
+  const [auditEvents, setAuditEvents] = useState([]);
   const [apiMetrics, setApiMetrics] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [loadingState, setLoadingState] = useState({
+    core: false,
+    inquiries: false,
+    metrics: false,
+    audit: false,
+  });
+
+  const loadedRef = useRef({
+    core: false,
+    inquiries: false,
+    metrics: false,
+    audit: false,
+  });
+
+  const inFlightRef = useRef({
+    core: null,
+    inquiries: null,
+    metrics: null,
+    audit: null,
+  });
 
   const setUnavailableMessage = () => {
-    setApiError('No se pudo conectar con la API de administración.');
+    setApiError('No se pudo conectar con la API de administracion.');
   };
 
   const setApiErrorFromError = (error, fallback) => {
@@ -30,15 +57,26 @@ export function AdminProvider({ children }) {
     return [];
   };
 
-  useEffect(() => {
-    const loadFromAPI = async () => {
+  const setLoading = (key, value) => {
+    setLoadingState((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const withAuthToken = () => {
+    const token = localStorage.getItem('industrialpro_token');
+    return typeof token === 'string' && token.length > 0;
+  };
+
+  const loadCoreData = useCallback(async ({ force = false } = {}) => {
+    if (!force && loadedRef.current.core) return true;
+    if (!force && inFlightRef.current.core) return inFlightRef.current.core;
+
+    const request = (async () => {
+      setLoading('core', true);
       try {
-        const [prods, cats, brs, inqs, metrics] = await Promise.all([
+        const [prods, cats, brs] = await Promise.all([
           apiFetch('/products?all=true'),
           apiFetch('/categories'),
           apiFetch('/brands'),
-          apiFetch('/contacts').catch(() => null),
-          apiFetch('/admin/metrics').catch(() => null),
         ]);
 
         const safeProducts = ensureApiResponse(prods, '/products?all=true');
@@ -48,24 +86,154 @@ export function AdminProvider({ children }) {
         setProducts(safeProducts);
         setCategories(safeCategories);
         setBrands(safeBrands);
-        if (inqs !== null) setInquiries(parseInquiryList(inqs));
-        if (metrics !== null) setApiMetrics(metrics);
         setApiError(null);
+        loadedRef.current.core = true;
+        return true;
       } catch (error) {
         if (!mockFallbackEnabled) {
-          console.error('AdminContext: backend unavailable and mock fallback disabled', error);
           if (isApiUnavailableError(error)) setUnavailableMessage();
-          else setApiErrorFromError(error, 'No se pudo cargar el panel de administración');
-          return;
+          else setApiErrorFromError(error, 'No se pudo cargar el panel de administracion');
+          return false;
         }
-        console.warn('AdminContext: backend unavailable, using fallback data');
+        return true;
       } finally {
+        setLoading('core', false);
         setDataLoaded(true);
+        inFlightRef.current.core = null;
       }
-    };
+    })();
 
-    loadFromAPI();
-  }, []);
+    inFlightRef.current.core = request;
+    return request;
+  }, [mockFallbackEnabled]);
+
+  const loadInquiries = useCallback(async ({ force = false } = {}) => {
+    if (!isAuthenticated || !withAuthToken()) return [];
+    if (!force && loadedRef.current.inquiries) return [];
+    if (!force && inFlightRef.current.inquiries) return inFlightRef.current.inquiries;
+
+    const request = (async () => {
+      setLoading('inquiries', true);
+      try {
+        const result = await apiFetch('/contacts');
+        if (result !== null) {
+          const parsed = parseInquiryList(result);
+          setInquiries(parsed);
+          setApiError(null);
+          loadedRef.current.inquiries = true;
+          return parsed;
+        }
+        return [];
+      } catch (error) {
+        if (!mockFallbackEnabled) {
+          if (isApiUnavailableError(error)) setUnavailableMessage();
+          else setApiErrorFromError(error, 'No se pudieron cargar las consultas');
+        }
+        return [];
+      } finally {
+        setLoading('inquiries', false);
+        inFlightRef.current.inquiries = null;
+      }
+    })();
+
+    inFlightRef.current.inquiries = request;
+    return request;
+  }, [isAuthenticated, mockFallbackEnabled]);
+
+  const loadMetrics = useCallback(async ({ force = false } = {}) => {
+    if (!isAuthenticated || !withAuthToken()) return null;
+    if (!force && loadedRef.current.metrics) return null;
+    if (!force && inFlightRef.current.metrics) return inFlightRef.current.metrics;
+
+    const request = (async () => {
+      setLoading('metrics', true);
+      try {
+        const result = await apiFetch('/admin/metrics');
+        if (result !== null) {
+          setApiMetrics(result);
+          setApiError(null);
+          loadedRef.current.metrics = true;
+          return result;
+        }
+        return null;
+      } catch (error) {
+        if (!mockFallbackEnabled) {
+          if (isApiUnavailableError(error)) setUnavailableMessage();
+          else setApiErrorFromError(error, 'No se pudieron cargar las metricas');
+        }
+        return null;
+      } finally {
+        setLoading('metrics', false);
+        inFlightRef.current.metrics = null;
+      }
+    })();
+
+    inFlightRef.current.metrics = request;
+    return request;
+  }, [isAuthenticated, mockFallbackEnabled]);
+
+  const loadAuditEvents = useCallback(async ({ force = false } = {}) => {
+    if (!isAuthenticated || !withAuthToken()) return [];
+    if (!force && loadedRef.current.audit) return [];
+    if (!force && inFlightRef.current.audit) return inFlightRef.current.audit;
+
+    const request = (async () => {
+      setLoading('audit', true);
+      try {
+        const result = await apiFetch('/admin/audit?limit=80');
+        if (result?.items) {
+          setAuditEvents(result.items);
+          loadedRef.current.audit = true;
+          setApiError(null);
+          return result.items;
+        }
+        return [];
+      } catch (error) {
+        if (!mockFallbackEnabled) {
+          if (isApiUnavailableError(error)) setUnavailableMessage();
+          else setApiErrorFromError(error, 'No se pudo cargar la auditoria');
+        }
+        return [];
+      } finally {
+        setLoading('audit', false);
+        inFlightRef.current.audit = null;
+      }
+    })();
+
+    inFlightRef.current.audit = request;
+    return request;
+  }, [isAuthenticated, mockFallbackEnabled]);
+
+  const refreshAdminData = useCallback(async () => {
+    await loadCoreData({ force: true });
+    if (isAuthenticated) {
+      await Promise.all([
+        loadInquiries({ force: true }),
+        loadMetrics({ force: true }),
+        loadAuditEvents({ force: true }),
+      ]);
+    }
+  }, [isAuthenticated, loadAuditEvents, loadCoreData, loadInquiries, loadMetrics]);
+
+  useEffect(() => {
+    if (!isAdminRoute || !isAuthenticated) return;
+    void loadCoreData();
+  }, [isAdminRoute, isAuthenticated, loadCoreData]);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+
+    loadedRef.current.inquiries = false;
+    loadedRef.current.metrics = false;
+    loadedRef.current.audit = false;
+    inFlightRef.current.inquiries = null;
+    inFlightRef.current.metrics = null;
+    inFlightRef.current.audit = null;
+
+    setApiMetrics(null);
+    setAuditEvents([]);
+    setInquiries(mockFallbackEnabled ? [...mockInquiries] : []);
+  }, [isAuthenticated, mockFallbackEnabled]);
 
   const addProduct = async (product) => {
     let newProduct;
@@ -123,6 +291,35 @@ export function AdminProvider({ children }) {
 
     setProducts((prev) => prev.map((product) => (product.id === id ? { ...product, ...updates } : product)));
     return { id, ...updates };
+  };
+
+  const updateProductPublishStatus = async (id, publishStatus) => {
+    const safeStatus = ['draft', 'published', 'archived'].includes(publishStatus) ? publishStatus : 'draft';
+    return updateProduct(id, { publishStatus: safeStatus, isActive: safeStatus === 'published' });
+  };
+
+  const restoreProductPreviousVersion = async (id) => {
+    try {
+      const result = await apiFetch(`/products/${id}/restore-previous`, {
+        method: 'POST',
+      });
+      if (result === null) {
+        if (!mockFallbackEnabled) {
+          setUnavailableMessage();
+          return null;
+        }
+        return null;
+      }
+      setProducts((prev) => prev.map((product) => (product.id === id ? result : product)));
+      setApiError(null);
+      return result;
+    } catch (error) {
+      if (!mockFallbackEnabled) {
+        if (isApiUnavailableError(error)) setUnavailableMessage();
+        else setApiErrorFromError(error, 'No se pudo restaurar la version anterior');
+      }
+      return null;
+    }
   };
 
   const deleteProduct = async (id) => {
@@ -184,7 +381,7 @@ export function AdminProvider({ children }) {
     } catch (error) {
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
-        else setApiErrorFromError(error, 'No se pudo crear la categoría');
+        else setApiErrorFromError(error, 'No se pudo crear la categoria');
         return null;
       }
       newCategory = { ...category, id: Date.now(), slug: category.name.toLowerCase().replace(/\s+/g, '-') };
@@ -216,7 +413,7 @@ export function AdminProvider({ children }) {
     } catch (error) {
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
-        else setApiErrorFromError(error, 'No se pudo actualizar la categoría');
+        else setApiErrorFromError(error, 'No se pudo actualizar la categoria');
         return;
       }
     }
@@ -224,6 +421,9 @@ export function AdminProvider({ children }) {
   };
 
   const deleteCategory = async (id) => {
+    let fallbackCategory = null;
+    let deletionApplied = false;
+
     try {
       const result = await apiFetch(`/categories/${id}`, { method: 'DELETE' });
       if (result === null) {
@@ -233,15 +433,28 @@ export function AdminProvider({ children }) {
         }
       } else {
         setApiError(null);
+        fallbackCategory = result?.reassignedTo || null;
+        deletionApplied = true;
       }
     } catch (error) {
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
-        else setApiErrorFromError(error, 'No se pudo eliminar la categoría');
+        else setApiErrorFromError(error, 'No se pudo eliminar la categoria');
         return;
       }
     }
+
     setCategories((prev) => prev.filter((category) => category.id !== id));
+
+    if (fallbackCategory || deletionApplied) {
+      const fallbackId = fallbackCategory?.id ?? null;
+      const fallbackName = fallbackCategory?.name ?? '';
+      setProducts((prev) => prev.map((product) => (
+        Number(product.categoryId) === Number(id)
+          ? { ...product, categoryId: fallbackId, category: fallbackName || product.category }
+          : product
+      )));
+    }
   };
 
   const addBrand = async (brand) => {
@@ -391,6 +604,8 @@ export function AdminProvider({ children }) {
     totalInquiries: inquiries.length,
   });
 
+  const refreshAuditEvents = async () => loadAuditEvents({ force: true });
+
   return (
     <AdminContext.Provider
       value={{
@@ -398,6 +613,8 @@ export function AdminProvider({ children }) {
         addProduct,
         updateProduct,
         deleteProduct,
+        updateProductPublishStatus,
+        restoreProductPreviousVersion,
         toggleProductActive,
         toggleProductFeatured,
         updateStockStatus,
@@ -416,6 +633,13 @@ export function AdminProvider({ children }) {
         apiMetrics,
         apiError,
         dataLoaded,
+        loadingState,
+        auditEvents,
+        refreshAuditEvents,
+        loadInquiries,
+        loadMetrics,
+        loadAuditEvents,
+        refreshAdminData,
       }}
     >
       {children}

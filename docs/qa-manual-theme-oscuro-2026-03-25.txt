@@ -1,0 +1,54 @@
+﻿QA MANUAL - THEME OSCURO (NEGRO/ROJO/BLANCO/GRIS)
+Fecha: 2026-03-25
+
+Objetivo
+- Validar consistencia visual y UX de la nueva paleta en vistas publicas.
+- Confirmar contraste, legibilidad, estados hover/focus y comportamiento mobile.
+
+Ambientes
+1. Desktop: 1440x900 (Chrome o Edge)
+2. Mobile: 390x844 (DevTools responsive)
+
+Build/Test tecnico (ya verificado)
+- npm run build: OK
+- npm test: OK (14/14)
+
+Rutas a validar
+1. /
+2. /productos
+3. /producto/:id
+4. /comparar
+5. /contacto
+6. Ruta inexistente (404)
+
+Checklist visual
+- [ ] Navbar en fondo oscuro: textos legibles, hover en rojo sin perder contraste.
+- [ ] Breadcrumbs en tema oscuro consistente en todas las rutas.
+- [ ] Cards de producto: superficie oscura, precio/acento rojo legible, botones claros.
+- [ ] Sidebar de cotizacion (carrito): fondo oscuro, controles de cantidad visibles.
+- [ ] Buscador/autocomplete: dropdown oscuro, item activo visible.
+- [ ] Home: hero y secciones con jerarquia clara (fondo/CTA/acento).
+- [ ] Productos: filtros, chips activos, paginacion y estados vacios en dark theme.
+- [ ] Product detail: tabs, stock badges, CTA y calculadora de envio legibles.
+- [ ] Comparador: barra fija inferior y tabla comparativa con contraste correcto.
+- [ ] Contacto: formulario, errores, success state y CTA secundarios coherentes.
+- [ ] 404: fondo oscuro + acciones principales con prioridad visual correcta.
+- [ ] Footer: lectura en oscuro y links con hover consistente.
+
+Checklist UX/A11y rapido
+- [ ] Foco visible con teclado en botones, links e inputs.
+- [ ] Hover no rompe contraste ni semantica de color.
+- [ ] Textos secundarios no quedan demasiado apagados (zinc-400/500).
+- [ ] CTA principal siempre identifica rojo como accion prioritaria.
+- [ ] En mobile no hay overlays con texto ilegible (menu, filtros, carrito).
+
+Criterio de aceptacion
+- Sin bloques con fondo claro aislado que rompan el tema.
+- Sin clases invalidas ni glitches de posicion (translate ya corregido).
+- Paleta respetada: negro/rojo/blanco/gris en toda la navegacion publica.
+
+Notas
+- Si aparecen casos puntuales de bajo contraste, ajustar localmente en:
+  - text-zinc-400 -> text-zinc-300
+  - border-zinc-800 -> border-zinc-700
+  - red-600 -> red-500 o red-400 segun fondo

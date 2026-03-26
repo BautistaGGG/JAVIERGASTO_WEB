@@ -4,8 +4,10 @@ import { Search, Filter, X, SlidersHorizontal, ChevronLeft, ChevronRight, Chevro
 import { products as allProducts, categories, brands, formatPrice } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import Breadcrumbs from '../components/Breadcrumbs';
-import SkeletonCard from '../components/SkeletonCard';
+import { SkeletonCatalog } from '../components/SkeletonCard';
 import { useComparator, CompareBar } from './Comparator';
+import { useSeo } from '../hooks/useSeo';
+import { isFeatureEnabled } from '../config/featureFlags';
 
 const PRODUCTS_PER_PAGE = 8;
 
@@ -46,6 +48,17 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const { compareIds, toggleCompare, isInCompare, clearCompare } = useComparator();
+  const selectedCategoryData = selectedCategory ? categories.find((c) => c.id === Number(selectedCategory)) : null;
+
+  useSeo({
+    title: isFeatureEnabled('SEO_DYNAMIC_CATEGORIES') && selectedCategoryData
+      ? `${selectedCategoryData.name} | Productos | Hidraulica Gasto`
+      : 'Productos Industriales | Hidraulica Gasto',
+    description: isFeatureEnabled('SEO_DYNAMIC_CATEGORIES') && selectedCategoryData
+      ? `Explora ${selectedCategoryData.name} con filtros por marca, stock y precio.`
+      : 'Explora productos con filtros avanzados por categoria, marca y stock.',
+    path: '/productos',
+  });
 
   // Sidebar sections collapsed state
   const [sidebarSections, setSidebarSections] = useState({
@@ -470,11 +483,7 @@ export default function Products() {
           {/* Section */}
           <div className="flex-1 min-w-0">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
-              </div>
+              <SkeletonCatalog count={6} />
             ) : filtered.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">

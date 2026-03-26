@@ -1,6 +1,6 @@
-﻿import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { WHATSAPP_NUMBER, formatPrice } from '../data/products';
-import { buildCartQuoteWhatsAppMessage, generateWhatsAppLink } from '../services/productService';
+import { buildCartQuoteWhatsAppMessage, openTrackedWhatsApp } from '../services/productService';
 import { useToast } from './ToastContext';
 
 const CartContext = createContext();
@@ -78,9 +78,12 @@ export function CartProvider({ children }) {
     if (items.length === 0) return;
 
     const message = buildCartQuoteWhatsAppMessage({ items, formatPrice });
-    const link = generateWhatsAppLink(WHATSAPP_NUMBER, message);
-
-    window.open(link, '_blank');
+    openTrackedWhatsApp({
+      phone: WHATSAPP_NUMBER,
+      message,
+      source: 'cart_quote',
+      metadata: { itemCount: items.length, total: getTotal() },
+    });
     addToast('Cotización enviada por WhatsApp', 'success');
   };
 

@@ -85,10 +85,23 @@ export function ensureSchema() {
       ON products(sku)
       WHERE sku IS NOT NULL AND TRIM(sku) <> '';
   `);
+
+  const productColumns = db.prepare('PRAGMA table_info(products)').all();
+  const hasShowPrice = productColumns.some((column) => column.name === 'show_price');
+  if (!hasShowPrice) {
+    db.exec('ALTER TABLE products ADD COLUMN show_price BOOLEAN DEFAULT 1');
+  }
 }
 
 export function formatProduct(row) {
   if (!row) return null;
+  const specs = safeJsonParse(row.specs, {});
+  const adminMeta = specs && typeof specs.__admin === 'object' ? specs.__admin : {};
+  const publishStatus = ['draft', 'published', 'archived'].includes(adminMeta.publishStatus)
+    ? adminMeta.publishStatus
+    : (Boolean(row.active) ? 'published' : 'draft');
+  const version = Number(adminMeta.version || 1);
+  const versions = Array.isArray(adminMeta.versions) ? adminMeta.versions : [];
 
   return {
     id: row.id,
@@ -105,13 +118,19 @@ export function formatProduct(row) {
     created_at: row.created_at,
     categoryId: row.category_id ?? null,
     brandId: row.brand_id ?? null,
-    specs: safeJsonParse(row.specs, {}),
+    specs,
     images: safeJsonParse(row.images, []),
     sku: row.sku || '',
     badge: row.badge || null,
     stockStatus: row.stock_status || 'in_stock',
+    showPrice: row.show_price !== 0,
     isFeatured: Boolean(row.featured),
     isActive: Boolean(row.active),
+    publishStatus,
+    version,
+    versionCount: versions.length,
+    lastUpdatedAt: adminMeta.updatedAt || row.created_at,
+    lastUpdatedBy: adminMeta.updatedBy || null,
   };
 }
 

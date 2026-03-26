@@ -83,6 +83,7 @@ function buildToken(user) {
     sub: user.email,
     role: user.role,
     name: user.name,
+    jti: crypto.randomUUID(),
     iat: now,
     exp: now + ADMIN_TOKEN_TTL_SECONDS,
   };

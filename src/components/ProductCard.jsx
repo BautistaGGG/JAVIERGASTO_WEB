@@ -1,25 +1,29 @@
-﻿import { Link } from 'react-router-dom';
+import { memo } from 'react';
+import { Link } from 'react-router-dom';
 import { ShoppingCart, Package, GitCompareArrows } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice, getStockLabel, WHATSAPP_NUMBER } from '../data/products';
-import { buildProductInquiryWhatsAppMessage, generateWhatsAppLink } from '../services/productService';
+import { buildProductInquiryWhatsAppMessage, openTrackedWhatsApp } from '../services/productService';
 import ProductBadge from './ProductBadge';
 import LazyImage from './LazyImage';
 import WhatsAppIcon from './WhatsAppIcon';
 import ShareButton from './ShareButton';
+import { useToast } from '../context/ToastContext';
 
 const getStockDisplay = (product) => {
-  const stock = product.stock ?? 0;
-  if (stock === 0) return { text: 'Sin stock', color: 'text-red-600', bg: 'bg-red-50', icon: '⛔', accent: 'border-red-200' };
-  if (stock <= 5) return { text: `¡Solo ${stock} disponibles!`, color: 'text-amber-700', bg: 'bg-amber-50', icon: '⚠️', accent: 'border-amber-200' };
-  if (stock <= 20) return { text: `${stock} unidades disponibles`, color: 'text-blue-700', bg: 'bg-blue-50', icon: '📦', accent: 'border-blue-200' };
-  return { text: `${stock} unidades en stock`, color: 'text-green-700', bg: 'bg-green-50', icon: '✅', accent: 'border-green-200' };
+  const stock = Number(product?.stock ?? 0);
+  if (stock === 0) return { text: 'Sin stock', color: 'text-red-300', bg: 'bg-red-950/40', icon: '⛔', accent: 'border-red-900/70' };
+  if (stock <= 5) return { text: `¡Solo ${stock} disponibles!`, color: 'text-zinc-200', bg: 'bg-zinc-950', icon: '⚠️', accent: 'border-zinc-800' };
+  if (stock <= 20) return { text: `${stock} unidades disponibles`, color: 'text-red-300', bg: 'bg-red-950/40', icon: '📦', accent: 'border-red-900/70' };
+  return { text: `${stock} unidades en stock`, color: 'text-zinc-200', bg: 'bg-zinc-950', icon: '✅', accent: 'border-zinc-800' };
 };
 
-export default function ProductCard({ product, isInCompare, onToggleCompare }) {
+function ProductCard({ product, isInCompare, onToggleCompare }) {
   const { addToCart } = useCart();
+  const { addToast } = useToast();
   const stockLabel = getStockLabel(product.stockStatus);
   const stockDisplay = getStockDisplay(product);
+  const showPrice = product.showPrice !== false;
 
   const handleWhatsApp = (e) => {
     e.preventDefault();
@@ -27,9 +31,15 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
     const msg = buildProductInquiryWhatsAppMessage({
       name: product.name,
       sku: product.sku,
-      priceText: formatPrice(product.price),
+      priceText: showPrice ? formatPrice(product.price) : 'Precio a consultar',
     });
-    window.open(generateWhatsAppLink(WHATSAPP_NUMBER, msg), '_blank');
+    openTrackedWhatsApp({
+      phone: WHATSAPP_NUMBER,
+      message: msg,
+      source: 'product_card',
+      metadata: { productId: product.id, sku: product.sku || null },
+    });
+    addToast(`Abriendo WhatsApp para ${product.name}.`, 'info');
   };
 
   const handleAddToCart = (e) => {
@@ -46,8 +56,8 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
 
   return (
     <Link to={`/producto/${product.id}`} className="group block">
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm card-hover h-full flex flex-col">
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+      <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm card-hover h-full flex flex-col">
+        <div className="relative aspect-[4/3] overflow-hidden bg-zinc-800">
           <LazyImage
             src={product.image}
             alt={product.name}
@@ -57,7 +67,7 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {product.badge && <ProductBadge badge={product.badge} />}
             {product.isFeatured && !product.badge && (
-              <span className="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shadow-lg">
+              <span className="bg-zinc-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shadow-lg">
                 Destacado
               </span>
             )}
@@ -73,8 +83,8 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
                 onClick={handleCompare}
                 className={`p-2 rounded-lg shadow-lg transition-all ${
                   isInCompare
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white/90 text-gray-600 hover:bg-blue-600 hover:text-white'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-zinc-900/90 text-zinc-300 hover:bg-red-600 hover:text-white'
                 }`}
                 title={isInCompare ? 'Quitar de comparación' : 'Agregar a comparación'}
               >
@@ -85,15 +95,24 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
         </div>
 
         <div className="p-4 flex-1 flex flex-col">
-          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{product.brand}</span>
-          <h3 className="text-sm font-bold text-gray-900 mt-1 line-clamp-2 group-hover:text-blue-700 transition-colors leading-snug">
+          <span className="text-xs font-semibold text-red-400 uppercase tracking-wide">{product.brand}</span>
+          <h3 className="text-sm font-bold text-zinc-100 mt-1 line-clamp-2 group-hover:text-red-300 transition-colors leading-snug">
             {product.name}
           </h3>
-          <p className="text-xs text-gray-500 mt-1">{product.category}</p>
+          <p className="text-xs text-zinc-400 mt-1">{product.category}</p>
 
           <div className="mt-auto pt-3">
-            <p className="text-2xl font-extrabold text-gray-900">{formatPrice(product.price)}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">+ IVA | Precio unitario</p>
+            {showPrice ? (
+              <>
+                <p className="text-2xl font-extrabold text-zinc-100">{formatPrice(product.price)}</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">+ IVA | Precio unitario</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xl font-extrabold text-zinc-100">Precio a consultar</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Consultá por WhatsApp</p>
+              </>
+            )}
           </div>
 
           <div className={`mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg border ${stockDisplay.bg} ${stockDisplay.accent}`}>
@@ -109,8 +128,8 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
               disabled={product.stock === 0}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all btn-press shadow-sm hover:shadow-md ${
                 product.stock === 0
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  ? 'bg-gray-300 text-zinc-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
               }`}
             >
               <ShoppingCart size={16} />
@@ -129,3 +148,8 @@ export default function ProductCard({ product, isInCompare, onToggleCompare }) {
     </Link>
   );
 }
+
+export default memo(ProductCard);
+
+
+

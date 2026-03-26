@@ -1,4 +1,4 @@
-﻿import { apiFetch, ensureApiResponse } from './api.js';
+import { apiFetch, ensureApiResponse } from './api.js';
 
 export const getContacts = async () => ensureApiResponse(await apiFetch('/contacts'), '/contacts');
 

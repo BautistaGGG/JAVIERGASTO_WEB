@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Search, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { COMPANY_NAME } from '../data/products';
 import SearchAutocomplete from './SearchAutocomplete';
+import BrandWordmark from './BrandWordmark';
 
 export default function Navbar({ onCartClick }) {
   const { getItemCount } = useCart();
@@ -47,44 +47,35 @@ export default function Navbar({ onCartClick }) {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50 shadow-sm">
       {/* Main navbar */}
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center">
-              <span className="text-white font-black text-lg">IP</span>
-            </div>
-            <div className="hidden sm:block">
-              <span className="font-bold text-gray-900 text-lg leading-none block">{COMPANY_NAME}</span>
-              <span className="text-[10px] text-gray-500 leading-none">Insumos Industriales</span>
-            </div>
+          <Link to="/" className="flex items-center shrink-0">
+            <BrandWordmark textClassName="text-base sm:text-lg" />
           </Link>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
-            <Link to="/" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all">
-              Inicio
-            </Link>
-            <Link to="/productos" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all">
+            <Link to="/productos" className="px-3 py-2 text-sm font-medium text-zinc-200 hover:text-red-400 rounded-lg hover:bg-zinc-800 transition-all">
               Productos
             </Link>
             <a
+              href="#faq"
+              onClick={handleScrollTo('faq')}
+              className="px-3 py-2 text-sm font-medium text-zinc-200 hover:text-red-400 rounded-lg hover:bg-zinc-800 transition-all cursor-pointer"
+            >
+              Preguntas Frecuentes
+            </a>
+            <a
               href="#nosotros"
               onClick={handleScrollTo('nosotros')}
-              className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all cursor-pointer"
+              className="px-3 py-2 text-sm font-medium text-zinc-200 hover:text-red-400 rounded-lg hover:bg-zinc-800 transition-all cursor-pointer"
             >
               Nosotros
             </a>
-            <a
-              href="#faq"
-              onClick={handleScrollTo('faq')}
-              className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all cursor-pointer"
-            >
-              FAQ
-            </a>
-            <Link to="/contacto" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all">
+            <Link to="/contacto" className="px-3 py-2 text-sm font-medium text-zinc-200 hover:text-red-400 rounded-lg hover:bg-zinc-800 transition-all">
               Contacto
             </Link>
           </div>
@@ -98,18 +89,18 @@ export default function Navbar({ onCartClick }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="lg:hidden p-2.5 text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all"
+              className="lg:hidden p-2.5 text-zinc-300 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-all"
             >
               <Search size={22} />
             </button>
 
             <button
               onClick={onCartClick}
-              className="relative p-2.5 text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all"
+              className="relative p-2.5 text-zinc-300 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-all"
             >
               <ShoppingCart size={22} />
               {count > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 bg-blue-600 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-lg ${cartPop ? 'animate-cart-pop' : ''}`}>
+                <span className={`absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-lg ${cartPop ? 'animate-cart-pop' : ''}`}>
                   {count}
                 </span>
               )}
@@ -117,7 +108,7 @@ export default function Navbar({ onCartClick }) {
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2.5 text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all"
+              className="md:hidden p-2.5 text-zinc-300 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-all"
             >
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -127,36 +118,33 @@ export default function Navbar({ onCartClick }) {
 
       {/* Mobile search with autocomplete */}
       {searchOpen && (
-        <div className="lg:hidden border-t border-gray-100 p-3 bg-gray-50 animate-fade-in">
+        <div className="lg:hidden border-t border-zinc-800 p-3 bg-zinc-950 animate-fade-in">
           <SearchAutocomplete mobile onNavigate={() => setSearchOpen(false)} />
         </div>
       )}
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white shadow-lg animate-fade-in">
+        <div className="md:hidden border-t border-zinc-800 bg-zinc-900 shadow-lg animate-fade-in">
           <div className="px-4 py-3 space-y-1">
-            <Link to="/" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-gray-700 hover:bg-blue-50 rounded-xl font-medium">
-              Inicio
+            <Link to="/productos" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-zinc-200 hover:bg-zinc-800 rounded-xl font-medium">
+              Productos
             </Link>
-            <Link to="/productos" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-gray-700 hover:bg-blue-50 rounded-xl font-medium">
-              Todos los Productos
-            </Link>
-            <a
-              href="#nosotros"
-              onClick={handleScrollTo('nosotros')}
-              className="block px-3 py-3 text-gray-700 hover:bg-blue-50 rounded-xl font-medium cursor-pointer"
-            >
-              Nosotros
-            </a>
             <a
               href="#faq"
               onClick={handleScrollTo('faq')}
-              className="block px-3 py-3 text-gray-700 hover:bg-blue-50 rounded-xl font-medium cursor-pointer"
+              className="block px-3 py-3 text-zinc-200 hover:bg-zinc-800 rounded-xl font-medium cursor-pointer"
             >
               Preguntas Frecuentes
             </a>
-            <Link to="/contacto" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-gray-700 hover:bg-blue-50 rounded-xl font-medium">
+            <a
+              href="#nosotros"
+              onClick={handleScrollTo('nosotros')}
+              className="block px-3 py-3 text-zinc-200 hover:bg-zinc-800 rounded-xl font-medium cursor-pointer"
+            >
+              Nosotros
+            </a>
+            <Link to="/contacto" onClick={() => setMenuOpen(false)} className="block px-3 py-3 text-zinc-200 hover:bg-zinc-800 rounded-xl font-medium">
               Contacto
             </Link>
           </div>
@@ -165,3 +153,5 @@ export default function Navbar({ onCartClick }) {
     </nav>
   );
 }
+
+

@@ -1,11 +1,11 @@
 const badgeConfig = {
   new: {
     label: 'Nuevo',
-    className: 'bg-emerald-500 text-white',
+    className: 'bg-gray-500 text-white',
   },
   bestseller: {
     label: 'Más vendido',
-    className: 'bg-blue-600 text-white',
+    className: 'bg-red-600 text-white',
   },
   sale: {
     label: 'Oferta',
@@ -13,11 +13,11 @@ const badgeConfig = {
   },
   limited: {
     label: 'Últimas unidades',
-    className: 'bg-amber-500 text-white',
+    className: 'bg-gray-500 text-white',
   },
   exclusive: {
     label: 'Exclusivo',
-    className: 'bg-purple-600 text-white',
+    className: 'bg-red-600 text-white',
   },
 };
 
@@ -36,3 +36,4 @@ export default function ProductBadge({ badge }) {
 }
 
 export { badgeConfig };
+

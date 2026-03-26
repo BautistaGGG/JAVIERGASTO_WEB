@@ -5,23 +5,13 @@ import { formatApiErrorMessage } from '../services/errorUtils';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('industrialpro_auth');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('industrialpro_auth', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('industrialpro_auth');
-    }
-  }, [user]);
+    // Seguridad UX: no restaurar sesion automaticamente al abrir el panel.
+    localStorage.removeItem('industrialpro_auth');
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -61,6 +51,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     apiFetch('/admin/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem('industrialpro_token');
+    localStorage.removeItem('industrialpro_auth');
     setUser(null);
   };
 

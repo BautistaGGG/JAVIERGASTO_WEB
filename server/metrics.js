@@ -4,6 +4,7 @@ const state = {
   requests: [],
   routeErrors: 0,
   unhandledErrors: 0,
+  whatsappClicks: [],
 };
 
 const normalizePath = (value = '') =>
@@ -40,6 +41,18 @@ export function recordUnhandledError() {
   state.unhandledErrors += 1;
 }
 
+export function recordWhatsAppClick({ source = 'unknown', metadata = {} } = {}) {
+  state.whatsappClicks.push({
+    source: String(source || 'unknown'),
+    metadata: metadata && typeof metadata === 'object' ? metadata : {},
+    at: Date.now(),
+  });
+
+  if (state.whatsappClicks.length > MAX_SAMPLES) {
+    state.whatsappClicks.splice(0, state.whatsappClicks.length - MAX_SAMPLES);
+  }
+}
+
 export function getMetricsSnapshot() {
   const total = state.requests.length;
   const success = state.requests.filter((request) => request.statusCode >= 200 && request.statusCode < 400).length;
@@ -69,6 +82,12 @@ export function getMetricsSnapshot() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
+  const whatsappBySource = state.whatsappClicks.reduce((acc, event) => {
+    const key = event.source || 'unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   return {
     timestamp: new Date().toISOString(),
     requests: {
@@ -84,7 +103,10 @@ export function getMetricsSnapshot() {
       route: state.routeErrors,
       unhandled: state.unhandledErrors,
     },
+    whatsapp: {
+      totalClicks: state.whatsappClicks.length,
+      bySource: whatsappBySource,
+    },
     endpoints,
   };
 }
-

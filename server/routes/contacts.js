@@ -1,11 +1,23 @@
 import { Router } from 'express';
-import db, { formatContact } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { handleUnexpectedError, sendError } from '../http.js';
 import { logInfo } from '../logger.js';
+import { createRateLimiter } from '../security.js';
 import { validateContactPayload, validateInquiryStatus } from '../validators.js';
+import { addAuditEvent } from '../auditLog.js';
+import { createContact, listContacts, updateContactStatus } from '../repositories/contactRepository.js';
 
 const router = Router();
+
+const contactSubmitLimiter = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 8,
+  keyFn: (req) => {
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    const email = String(req.body?.email || '').trim().toLowerCase() || 'no-email';
+    return `${ip}:${email}`;
+  },
+});
 
 router.get('/', requireAdmin, (req, res) => {
   try {
@@ -15,30 +27,7 @@ router.get('/', requireAdmin, (req, res) => {
     const search = req.query.search ? String(req.query.search).trim() : '';
     const flatMode = req.query.flat === 'true';
 
-    const conditions = [];
-    const params = [];
-
-    if (status) {
-      conditions.push('status = ?');
-      params.push(status);
-    }
-
-    if (search) {
-      const term = `%${search}%`;
-      conditions.push('(name LIKE ? OR email LIKE ? OR message LIKE ? OR product_name LIKE ?)');
-      params.push(term, term, term, term);
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const total = db.prepare(`SELECT COUNT(*) AS count FROM contacts ${where}`).get(...params)?.count || 0;
-    const offset = (page - 1) * pageSize;
-    const rows = db.prepare(`
-      SELECT * FROM contacts
-      ${where}
-      ORDER BY created_at DESC, id DESC
-      LIMIT ? OFFSET ?
-    `).all(...params, pageSize, offset);
-    const items = rows.map(formatContact);
+    const { items, total } = listContacts({ page, pageSize, status, search });
 
     if (flatMode) return res.json(items);
     return res.json({
@@ -59,7 +48,7 @@ router.get('/', requireAdmin, (req, res) => {
   }
 });
 
-router.post('/', (req, res) => {
+router.post('/', contactSubmitLimiter, (req, res) => {
   const errors = validateContactPayload(req.body);
   if (errors.length > 0) {
     return sendError(res, req, 400, 'VALIDATION_ERROR', errors.join('. '));
@@ -67,24 +56,12 @@ router.post('/', (req, res) => {
 
   try {
     const body = req.body || {};
-    const result = db.prepare(`
-      INSERT INTO contacts (
-        name, email, phone, message, subject, product_id, product_name, status, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      body.name.trim(),
-      body.email.trim(),
-      body.phone || '',
-      body.message.trim(),
-      body.subject || '',
-      body.productId || null,
-      body.productName || 'Consulta general',
-      body.status || 'pending',
-      body.source || 'contact_form'
-    );
-
-    const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json(formatContact(row));
+    const contact = createContact({
+      ...body,
+      status: 'pending',
+      source: 'contact_form',
+    });
+    return res.status(201).json(contact);
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'contacts_create');
   }
@@ -98,9 +75,7 @@ router.put('/:id/status', requireAdmin, (req, res) => {
   }
 
   try {
-    db.prepare('UPDATE contacts SET status = ? WHERE id = ?').run(status, req.params.id);
-    const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);
-
+    const row = updateContactStatus(req.params.id, status);
     if (!row) return sendError(res, req, 404, 'NOT_FOUND', 'Consulta no encontrada');
     logInfo('admin_contact_status_update', {
       requestId: req.requestId,
@@ -108,7 +83,15 @@ router.put('/:id/status', requireAdmin, (req, res) => {
       contactId: row?.id,
       status,
     });
-    return res.json(formatContact(row));
+    addAuditEvent({
+      actor: req.user?.email,
+      action: 'contact.status.update',
+      entity: 'contact',
+      entityId: row?.id,
+      detail: `Consulta ${row?.id} marcada como ${status}`,
+      requestId: req.requestId,
+    });
+    return res.json(row);
   } catch (error) {
     return handleUnexpectedError(error, req, res, 'contacts_update_status');
   }

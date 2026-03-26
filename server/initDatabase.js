@@ -1,6 +1,15 @@
 import db, { ensureSchema } from './db.js';
 import { categories, brands, products, mockInquiries } from '../src/data/products.js';
 
+const LEGACY_TO_CANONICAL_CATEGORY = {
+  'Herramientas Eléctricas': 'Neumática',
+  'Herramientas Manuales': 'Hidráulica',
+  'Seguridad Industrial': 'Hidráulica',
+  'Materiales de Construcción': 'Hidráulica',
+  'Fijaciones y Anclajes': 'Hidráulica',
+  'Iluminación Industrial': 'Hidráulica',
+};
+
 function seedCategories() {
   const insertCategory = db.prepare(`
     INSERT INTO categories (name, slug, icon, color)
@@ -18,6 +27,43 @@ function seedCategories() {
       icon: category.icon,
       color: category.color,
     });
+  }
+}
+
+function enforceCanonicalCategories() {
+  const allowedNames = new Set(categories.map((category) => category.name));
+  const canonicalByName = new Map(
+    db.prepare('SELECT id, name FROM categories WHERE name IN (?, ?)').all(
+      categories[0].name,
+      categories[1].name
+    ).map((row) => [row.name, row.id])
+  );
+
+  for (const [legacyName, canonicalName] of Object.entries(LEGACY_TO_CANONICAL_CATEGORY)) {
+    const canonicalId = canonicalByName.get(canonicalName);
+    if (!canonicalId) continue;
+    db.prepare(`
+      UPDATE products
+      SET category = ?, category_id = ?
+      WHERE category = ?
+    `).run(canonicalName, canonicalId, legacyName);
+  }
+
+  const fallbackCategoryName = categories[0].name;
+  const fallbackCategoryId = canonicalByName.get(fallbackCategoryName);
+  if (fallbackCategoryId) {
+    db.prepare(`
+      UPDATE products
+      SET category = ?, category_id = ?
+      WHERE category_id IS NULL OR TRIM(COALESCE(category, '')) = ''
+    `).run(fallbackCategoryName, fallbackCategoryId);
+  }
+
+  const legacyNames = Object.keys(LEGACY_TO_CANONICAL_CATEGORY).filter(
+    (name) => !allowedNames.has(name)
+  );
+  for (const legacyName of legacyNames) {
+    db.prepare('DELETE FROM categories WHERE name = ?').run(legacyName);
   }
 }
 
@@ -47,10 +93,10 @@ function seedProducts() {
   const insertProduct = db.prepare(`
     INSERT INTO products (
       name, description, price, stock, category, brand, image_url, featured, active,
-      category_id, brand_id, specs, images, sku, badge, stock_status
+      category_id, brand_id, specs, images, sku, badge, stock_status, show_price
     ) VALUES (
       @name, @description, @price, @stock, @category, @brand, @image_url, @featured, @active,
-      @category_id, @brand_id, @specs, @images, @sku, @badge, @stock_status
+      @category_id, @brand_id, @specs, @images, @sku, @badge, @stock_status, @show_price
     )
   `);
 
@@ -75,6 +121,7 @@ function seedProducts() {
       sku: product.sku || '',
       badge: product.badge || null,
       stock_status: product.stockStatus || 'in_stock',
+      show_price: product.showPrice !== false ? 1 : 0,
     });
   }
 }
@@ -112,6 +159,7 @@ export function initDatabase() {
 
   const transaction = db.transaction(() => {
     seedCategories();
+    enforceCanonicalCategories();
     seedBrands();
     seedProducts();
     seedContacts();

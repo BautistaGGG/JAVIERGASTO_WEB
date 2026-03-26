@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin.js';
 import contactRoutes from './routes/contacts.js';
 import productRoutes from './routes/products.js';
 import taxonomyRoutes from './routes/taxonomy.js';
+import eventsRoutes from './routes/events.js';
 import { logError, logInfo } from './logger.js';
 import { sendError } from './http.js';
 import { recordRequestMetric, recordUnhandledError } from './metrics.js';
@@ -21,6 +22,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const distPath = path.join(__dirname, '..', 'dist');
+const SITE_URL = (process.env.SITE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
 initDatabase();
 
@@ -76,10 +78,38 @@ app.get('/api/health', (req, res) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/events', createRateLimiter({ windowMs: 60_000, max: 180 }), eventsRoutes);
 app.use('/api', taxonomyRoutes);
 app.use('/api/*', (req, res) =>
   sendError(res, req, 404, 'NOT_FOUND', 'Endpoint no encontrado')
 );
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  const staticRoutes = ['/', '/productos', '/contacto', '/comparar'];
+  const productRows = db.prepare('SELECT id, active, created_at FROM products WHERE active = 1 ORDER BY id DESC').all();
+  const productRoutes = productRows.map((row) => ({
+    loc: `/producto/${row.id}`,
+    lastmod: row.created_at ? new Date(row.created_at).toISOString() : null,
+  }));
+  const urlEntries = [
+    ...staticRoutes.map((loc) => ({ loc, lastmod: null })),
+    ...productRoutes,
+  ];
+
+  const xmlItems = urlEntries.map((item) => {
+    const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : '';
+    const priority = item.loc.startsWith('/producto/') ? '0.7' : '0.9';
+    return `<url><loc>${SITE_URL}${item.loc}</loc>${lastmod}<priority>${priority}</priority></url>`;
+  }).join('');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${xmlItems}</urlset>`;
+  res.type('application/xml');
+  res.send(xml);
+});
 
 app.use(express.static(distPath));
 app.get('*', (req, res) => {
