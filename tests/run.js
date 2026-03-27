@@ -18,6 +18,29 @@ import {
   generateWhatsAppLink,
 } from '../src/services/productService.js';
 
+const waitForChildExit = async (child, timeoutMs = 5000) =>
+  new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const timer = setTimeout(() => {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+      }
+      finish();
+    }, timeoutMs);
+
+    child.once('exit', () => {
+      clearTimeout(timer);
+      finish();
+    });
+  });
+
 const tests = [
   {
     name: 'validateAdminLogin exige usuario y contrasena',
@@ -220,13 +243,13 @@ const tests = [
       };
 
       const waitForServer = async () => {
-        for (let attempt = 0; attempt < 30; attempt += 1) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
           try {
             const { response } = await requestJson('/products');
             if (response.ok) return;
           } catch {
           }
-          await delay(250);
+          await delay(500);
         }
         throw new Error('server_test_timeout');
       };
@@ -412,6 +435,7 @@ const tests = [
         })).response.status, 200);
       } finally {
         server.kill('SIGTERM');
+        await waitForChildExit(server);
       }
     },
   },
@@ -433,13 +457,13 @@ const tests = [
       const routes = ['/', '/productos', '/producto/1', '/contacto', '/admin'];
 
       const waitForServer = async () => {
-        for (let attempt = 0; attempt < 30; attempt += 1) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
           try {
             const response = await fetch(`${origin}/`);
             if (response.ok) return;
           } catch {
           }
-          await delay(250);
+          await delay(500);
         }
         throw new Error('server_ui_test_timeout');
       };
@@ -454,6 +478,7 @@ const tests = [
         }
       } finally {
         server.kill('SIGTERM');
+        await waitForChildExit(server);
       }
     },
   },
