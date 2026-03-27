@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import BrandWordmark from '../../components/BrandWordmark';
@@ -31,22 +31,22 @@ export default function AdminLogin() {
         <form onSubmit={onSubmit} className="bg-white rounded-2xl p-6 shadow-2xl space-y-4">
           {error && <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-xl border border-red-200 font-medium">{error}</div>}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Usuario</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">Usuario</label>
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full px-4 py-3 border border-gray-400 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Contrasena</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">Contrasena</label>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full px-4 py-3 border border-gray-400 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               required
             />
           </div>

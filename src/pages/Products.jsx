@@ -196,35 +196,35 @@ export default function Products() {
   const FilterPanel = ({ isMobile = false }) => (
     <div className={isMobile ? 'space-y-4' : 'space-y-1'}>
       {/* Section */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-900">
         <button
           onClick={() => toggleSection('category')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 transition-colors"
         >
-          <span className="text-sm font-bold text-gray-800">Categorías</span>
-          <ChevronDown size={16} className={`text-gray-500 transition-transform ${sidebarSections.category ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-bold text-zinc-100">Categorías</span>
+          <ChevronDown size={16} className={`text-zinc-400 transition-transform ${sidebarSections.category ? 'rotate-180' : ''}`} />
         </button>
         {sidebarSections.category && (
           <div className="p-3 space-y-1">
             <button
               onClick={() => setSelectedCategory('')}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                !selectedCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                !selectedCategory ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
               }`}
             >
-              Todas <span className="text-xs text-gray-400 ml-1">({allProducts.filter(p => p.isActive).length})</span>
+              Todas <span className="text-xs text-zinc-500 ml-1">({allProducts.filter(p => p.isActive).length})</span>
             </button>
             {categories.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(selectedCategory === String(c.id) ? '' : String(c.id))}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                  selectedCategory === String(c.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                  selectedCategory === String(c.id) ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
                 }`}
               >
                 <span>{c.icon}</span>
                 <span className="flex-1">{c.name}</span>
-                <span className="text-xs text-gray-400">({catCounts[c.id] || 0})</span>
+                <span className="text-xs text-zinc-500">({catCounts[c.id] || 0})</span>
               </button>
             ))}
           </div>
@@ -232,20 +232,20 @@ export default function Products() {
       </div>
 
       {/* Section */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-900">
         <button
           onClick={() => toggleSection('brand')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 transition-colors"
         >
-          <span className="text-sm font-bold text-gray-800">Marcas</span>
-          <ChevronDown size={16} className={`text-gray-500 transition-transform ${sidebarSections.brand ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-bold text-zinc-100">Marcas</span>
+          <ChevronDown size={16} className={`text-zinc-400 transition-transform ${sidebarSections.brand ? 'rotate-180' : ''}`} />
         </button>
         {sidebarSections.brand && (
           <div className="p-3 space-y-1">
             <button
               onClick={() => setSelectedBrand('')}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                !selectedBrand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                !selectedBrand ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
               }`}
             >
               Todas
@@ -255,11 +255,11 @@ export default function Products() {
                 key={b.id}
                 onClick={() => setSelectedBrand(selectedBrand === String(b.id) ? '' : String(b.id))}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                  selectedBrand === String(b.id) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                  selectedBrand === String(b.id) ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
                 }`}
               >
                 <span>{b.name}</span>
-                <span className="text-xs text-gray-400">({brandCounts[b.id] || 0})</span>
+                <span className="text-xs text-zinc-500">({brandCounts[b.id] || 0})</span>
               </button>
             ))}
           </div>
@@ -267,13 +267,13 @@ export default function Products() {
       </div>
 
       {/* Section */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-900">
         <button
           onClick={() => toggleSection('price')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 transition-colors"
         >
-          <span className="text-sm font-bold text-gray-800">Precio</span>
-          <ChevronDown size={16} className={`text-gray-500 transition-transform ${sidebarSections.price ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-bold text-zinc-100">Precio</span>
+          <ChevronDown size={16} className={`text-zinc-400 transition-transform ${sidebarSections.price ? 'rotate-180' : ''}`} />
         </button>
         {sidebarSections.price && (
           <div className="p-3 space-y-1">
@@ -282,7 +282,7 @@ export default function Products() {
                 key={range.value}
                 onClick={() => setSelectedPriceRange(selectedPriceRange === range.value ? '' : range.value)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedPriceRange === range.value ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                  selectedPriceRange === range.value ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
                 }`}
               >
                 {range.label}
@@ -293,13 +293,13 @@ export default function Products() {
       </div>
 
       {/* Section */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-900">
         <button
           onClick={() => toggleSection('stock')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 transition-colors"
         >
-          <span className="text-sm font-bold text-gray-800">Disponibilidad</span>
-          <ChevronDown size={16} className={`text-gray-500 transition-transform ${sidebarSections.stock ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-bold text-zinc-100">Disponibilidad</span>
+          <ChevronDown size={16} className={`text-zinc-400 transition-transform ${sidebarSections.stock ? 'rotate-180' : ''}`} />
         </button>
         {sidebarSections.stock && (
           <div className="p-3 space-y-1">
@@ -308,7 +308,7 @@ export default function Products() {
                 key={sf.value}
                 onClick={() => setSelectedStock(selectedStock === sf.value ? '' : sf.value)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedStock === sf.value ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                  selectedStock === sf.value ? 'bg-zinc-800 text-zinc-100 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
                 }`}
               >
                 {sf.label}
@@ -322,16 +322,16 @@ export default function Products() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-900">
       <Breadcrumbs items={breadcrumbItems} />
 
       {/* Section */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-zinc-100">
             {activeCatName || 'Todos los Productos'}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-zinc-400 mt-1">
             {loading ? 'Cargando...' : `${filtered.length} producto${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`}
           </p>
         </div>
@@ -342,16 +342,16 @@ export default function Products() {
         <div className="flex flex-col md:flex-row gap-3 mb-6">
           {/* Section */}
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre, marca, SKU..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
+              className="w-full pl-10 pr-4 py-3 border border-zinc-700 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-zinc-900 transition-all"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors">
                 <X size={16} />
               </button>
             )}
@@ -359,14 +359,14 @@ export default function Products() {
 
           {/* Section */}
           <div className="hidden md:flex items-center gap-2">
-            <ArrowUpDown size={14} className="text-gray-500" />
+            <ArrowUpDown size={14} className="text-zinc-400" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px] transition-all"
+              className="px-4 py-3 border border-zinc-700 rounded-xl text-sm text-zinc-100 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-500 min-w-[180px] transition-all [color-scheme:dark]"
             >
               {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value} className="bg-zinc-900 text-zinc-100">{opt.label}</option>
               ))}
             </select>
           </div>
@@ -375,7 +375,7 @@ export default function Products() {
           <div className="flex gap-2 md:hidden">
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium bg-white transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-zinc-700 rounded-xl text-sm font-medium bg-zinc-900 text-zinc-100 transition-colors"
             >
               <SlidersHorizontal size={16} />
               Filtros
@@ -388,10 +388,10 @@ export default function Products() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-3 border border-zinc-700 rounded-xl text-sm text-zinc-100 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-500 [color-scheme:dark]"
             >
               {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value} className="bg-zinc-900 text-zinc-100">{opt.label}</option>
               ))}
             </select>
           </div>
@@ -401,7 +401,7 @@ export default function Products() {
           <div className="mb-4">
             <button
               onClick={clearFilters}
-              className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 border border-red-200 rounded-xl font-semibold transition-colors"
+              className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 text-sm text-red-300 hover:bg-red-950/40 border border-red-900/70 rounded-xl font-semibold transition-colors"
             >
               <RotateCcw size={14} />
               Limpiar todos los filtros
@@ -413,20 +413,20 @@ export default function Products() {
         {showMobileFilters && (
           <>
             <div className="fixed inset-0 bg-black/50 z-40 animate-overlay-in" onClick={() => setShowMobileFilters(false)} />
-            <div className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white z-50 overflow-y-auto animate-fade-in-up shadow-2xl">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between z-10">
-                <h3 className="text-lg font-bold text-gray-900">Filtros</h3>
-                <button onClick={() => setShowMobileFilters(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+            <div className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-zinc-900 z-50 overflow-y-auto animate-fade-in-up shadow-2xl">
+              <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-4 py-4 flex items-center justify-between z-10">
+                <h3 className="text-lg font-bold text-zinc-100">Filtros</h3>
+                <button onClick={() => setShowMobileFilters(false)} className="p-2 hover:bg-zinc-800 rounded-lg">
                   <X size={20} />
                 </button>
               </div>
               <div className="p-4">
                 <FilterPanel isMobile />
               </div>
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+              <div className="sticky bottom-0 bg-zinc-900 border-t border-zinc-800 p-4">
                 <button
                   onClick={() => setShowMobileFilters(false)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition-colors"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold text-sm transition-colors"
                 >
                   Ver {filtered.length} producto{filtered.length !== 1 ? 's' : ''}
                 </button>

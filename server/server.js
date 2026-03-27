@@ -33,7 +33,14 @@ app.use(cors(buildCorsOptions()));
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(express.json({ limit: '5mb' }));
 app.use('/api', createRateLimiter({ windowMs: 60_000, max: 120 }));
-app.use('/api/admin/login', createRateLimiter({ windowMs: 60_000, max: 10 }));
+app.use('/api/admin/login', createRateLimiter({
+  windowMs: 60_000,
+  max: 5,
+  keyFn: (req) => {
+    const username = String(req.body?.username || req.body?.email || 'unknown').trim().toLowerCase();
+    return `${req.ip || 'unknown'}:${username}`;
+  },
+}));
 app.use((req, res, next) => {
   req.requestId = crypto.randomUUID();
   const start = Date.now();

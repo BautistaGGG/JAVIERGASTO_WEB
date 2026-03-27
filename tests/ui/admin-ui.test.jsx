@@ -159,10 +159,10 @@ describe('Admin UI interaction smoke', () => {
     const user = userEvent.setup();
     render(<InquiriesHarness />);
 
-    await user.click(screen.getByRole('button', { name: 'Pendiente' }));
+    await user.click(screen.getAllByRole('button', { name: 'Marcar respondida' })[0]);
     await waitFor(() => expect(updateInquiryStatusMock).toHaveBeenCalledWith(11, 'replied'));
 
-    await user.click(screen.getByRole('button', { name: 'Ver detalle' }));
+    await user.click(screen.getAllByRole('button', { name: /Detalle|Ver detalle/i })[0]);
     await user.click(screen.getByRole('button', { name: /Marcar como respondida/i }));
     await waitFor(() => expect(updateInquiryStatusMock).toHaveBeenCalledWith(11, 'replied'));
   });

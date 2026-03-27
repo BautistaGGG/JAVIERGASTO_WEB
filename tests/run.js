@@ -19,6 +19,7 @@ import {
   buildProductInquiryWhatsAppMessage,
   generateWhatsAppLink,
 } from '../src/services/productService.js';
+import { formatArgentinaPhoneInput, normalizeArgentinaPhone as normalizeFrontPhone } from '../src/utils/phone.js';
 
 const waitForChildExit = async (child, timeoutMs = 5000) =>
   new Promise((resolve) => {
@@ -150,6 +151,16 @@ const tests = [
       assert.ok(msg.includes('Producto A x2'));
       assert.ok(msg.includes('Producto B x1'));
       assert.ok(msg.includes('Total estimado: $250'));
+    },
+  },
+  {
+    name: 'telefono AR se normaliza y formatea de forma consistente',
+    run() {
+      assert.equal(normalizeFrontPhone('011 15 2345-6789').ok, true);
+      assert.equal(normalizeFrontPhone('011 15 2345-6789').e164, '+541123456789');
+      assert.equal(normalizeFrontPhone('+54 9 3329 598306').e164, '+5493329598306');
+      assert.equal(formatArgentinaPhoneInput('0111523456789'), '+54 11 2345 6789');
+      assert.equal(formatArgentinaPhoneInput('+54 9 3329 598306').startsWith('+54 9'), true);
     },
   },
   {

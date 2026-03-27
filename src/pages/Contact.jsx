@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, MapPin, Phone, Clock, CheckCircle2, AlertCircle, ArrowRight, Loader2, User, Briefcase, MessageCircle } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../data/products';
@@ -9,6 +9,10 @@ import WhatsAppIcon from '../components/WhatsAppIcon';
 import { SITE_INFO } from '../config/siteInfo';
 import { useSeo } from '../hooks/useSeo';
 import { useToast } from '../context/ToastContext';
+import { formatArgentinaPhoneInput, normalizeArgentinaPhone } from '../utils/phone';
+import { trackWhatsAppClick } from '../services/trackingService';
+
+const MIN_SUBMIT_FEEDBACK_MS = 1200;
 
 const subjectOptions = [
   'Cotizacion de productos',
@@ -27,6 +31,8 @@ const initialForm = {
   message: '',
   website: '',
 };
+
+const buildContactWhatsAppMessage = ({ message }) => String(message || '').trim();
 
 export default function Contact() {
   const { addToast } = useToast();
@@ -49,8 +55,8 @@ export default function Contact() {
 
     if (!form.phone.trim()) {
       newErrors.phone = 'El telefono es obligatorio';
-    } else if (!/^[\d\s\-+()]{7,20}$/.test(form.phone)) {
-      newErrors.phone = 'Ingresa un telefono valido';
+    } else if (!normalizeArgentinaPhone(form.phone).ok) {
+      newErrors.phone = 'Ingresa un WhatsApp valido de Argentina';
     }
 
     if (!form.subject) newErrors.subject = 'Selecciona un motivo';
@@ -67,7 +73,8 @@ export default function Contact() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone' ? formatArgentinaPhoneInput(value) : value;
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
 
     if (errors[name]) {
       setErrors((prev) => {
@@ -88,29 +95,41 @@ export default function Contact() {
     }
 
     setSubmitting(true);
+    const submitStart = Date.now();
 
     try {
-      await submitContactForm({
+      const normalizedPhone = normalizeArgentinaPhone(form.phone.trim());
+      const payload = {
         name: form.name.trim(),
         email: 'sin-email@whatsapp.local',
-        phone: form.phone.trim(),
+        phone: normalizedPhone.ok ? normalizedPhone.e164 : form.phone.trim(),
         subject: form.subject,
         message: form.message.trim(),
         website: form.website,
-      });
+      };
+      await submitContactForm(payload);
 
-      setSubmitted(true);
-      setForm({ ...initialForm });
-      addToast('Consulta enviada correctamente. Te responderemos por WhatsApp.', 'success');
+      const elapsed = Date.now() - submitStart;
+      if (elapsed < MIN_SUBMIT_FEEDBACK_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_SUBMIT_FEEDBACK_MS - elapsed));
+      }
+
+      const whatsappMessage = buildContactWhatsAppMessage(payload);
+      const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
+      void trackWhatsAppClick('contact_form_submit_redirect', { hasSubject: Boolean(payload.subject) });
+      window.location.assign(whatsappHref);
+      return;
     } catch (error) {
       if (isApiUnavailableError(error)) {
         const message = formatApiErrorMessage(error, 'No se pudo conectar con la API. Intenta nuevamente en unos minutos.');
         setSubmitError(message);
         addToast(message, 'error');
       } else {
-        const message = formatApiErrorMessage(error, 'Hubo un error al enviar tu consulta. Intenta nuevamente.');
+        const message = formatApiErrorMessage(error, 'La consulta se guardo, pero no pudimos abrir WhatsApp automaticamente.');
         setSubmitError(message);
-        addToast(message, 'error');
+        addToast(message, 'warning');
+        setSubmitted(true);
+        setForm({ ...initialForm });
       }
     } finally {
       setSubmitting(false);
@@ -137,11 +156,8 @@ export default function Contact() {
               <CheckCircle2 size={40} className="text-zinc-300" />
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-zinc-100 mb-3">Consulta enviada con exito</h1>
-            <p className="text-zinc-400 mb-2 text-sm md:text-base leading-relaxed max-w-md mx-auto">
-              Recibimos tu mensaje correctamente. Te vamos a contactar por WhatsApp a la brevedad.
-            </p>
             <div className="bg-green-950/40 border border-green-900/70 rounded-xl p-4 mb-8 max-w-md mx-auto">
-              <p className="text-green-200 text-sm font-medium">Te responderemos en menos de 24 horas habiles</p>
+              <p className="text-green-200 text-sm font-medium">Te contactaremos a la brevedad</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
@@ -158,12 +174,6 @@ export default function Contact() {
                 Ver productos
                 <ArrowRight size={16} />
               </Link>
-            </div>
-            <div className="mt-6 pt-6 border-t border-zinc-800">
-              <button onClick={handleWhatsApp} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 font-semibold text-sm transition-colors">
-                <WhatsAppIcon size={16} />
-                Continuar por WhatsApp
-              </button>
             </div>
           </div>
         </div>
@@ -235,11 +245,14 @@ export default function Contact() {
                     type="tel"
                     value={form.phone}
                     onChange={handleChange}
-                    placeholder="Ej: +54 11 1234-5678"
-                    maxLength={20}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="Ej: +54 9 11 1234 5678"
+                    maxLength={24}
                     className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all ${errors.phone ? 'border-red-400 bg-red-50' : 'border-zinc-700 bg-zinc-900'}`}
                   />
                   {errors.phone && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12} /> {errors.phone}</p>}
+                  {!errors.phone && <p className="text-zinc-500 text-xs mt-1">Formato recomendado: +54 9 11 1234 5678</p>}
                 </div>
 
                 <div>
@@ -294,7 +307,7 @@ export default function Contact() {
                     {submitting ? (
                       <>
                         <Loader2 size={18} className="animate-spin" />
-                        Enviando consulta...
+                        Enviando mensaje...
                       </>
                     ) : (
                       <>
@@ -312,6 +325,10 @@ export default function Contact() {
                     WhatsApp
                   </button>
                 </div>
+
+                {submitting && (
+                  <p className="text-xs text-zinc-400 text-center -mt-1">Enviando mensaje, aguardá un instante...</p>
+                )}
 
                 <p className="text-xs text-zinc-500 text-center pt-1">Tu informacion es confidencial y no sera compartida con terceros.</p>
               </form>
@@ -401,3 +418,4 @@ export default function Contact() {
     </div>
   );
 }
+

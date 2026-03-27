@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { Clock, Eye, EyeOff, MessageSquare, Package, Star } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import ActivityTimeline from './ActivityTimeline';
@@ -6,13 +6,8 @@ import AdminSectionLoader from './AdminSectionLoader';
 import { parseDateValue } from './shared';
 
 export default function Dashboard({ inquiries, activityLog }) {
-  const { getStats, apiMetrics, apiError, products, loadingState, loadInquiries, loadMetrics } = useAdmin();
+  const { getStats, apiError, products, loadingState } = useAdmin();
   const stats = getStats();
-
-  useEffect(() => {
-    void loadInquiries();
-    void loadMetrics();
-  }, [loadInquiries, loadMetrics]);
 
   const pendingOlderThan48h = useMemo(() => {
     const now = Date.now();
@@ -110,20 +105,12 @@ export default function Dashboard({ inquiries, activityLog }) {
     const archived = products.filter((product) => product.publishStatus === 'archived').length;
     if (apiError) alerts.push({ id: 'api', level: 'critical', text: apiError });
     if (pendingOlderThan48h > 0) alerts.push({ id: 'sla', level: 'warning', text: `${pendingOlderThan48h} consultas superan SLA de 48h.` });
-    if (apiMetrics?.errors?.route > 0) alerts.push({ id: 'route', level: 'warning', text: `Se registraron ${apiMetrics.errors.route} errores de ruta recientemente.` });
-    if (drafts > 0) alerts.push({ id: 'drafts', level: 'info', text: `${drafts} productos en borrador pendientes de publicación.` });
+    if (drafts > 0) alerts.push({ id: 'drafts', level: 'info', text: `${drafts} productos en borrador pendientes de publicacion.` });
     if (archived > 0) alerts.push({ id: 'archived', level: 'info', text: `${archived} productos archivados.` });
     return alerts.slice(0, 6);
-  }, [apiError, pendingOlderThan48h, apiMetrics, products]);
+  }, [apiError, pendingOlderThan48h, products]);
 
-  const opCards = [
-    { label: 'Disponibilidad API', value: apiMetrics ? `${apiMetrics.requests.availabilityPct}%` : '-', color: 'bg-gray-500', icon: Eye },
-    { label: 'P95 (ms)', value: apiMetrics ? apiMetrics.latency.p95Ms : '-', color: 'bg-gray-700', icon: Clock },
-    { label: 'Errores de ruta', value: apiMetrics ? apiMetrics.errors.route : '-', color: 'bg-red-700', icon: MessageSquare },
-    { label: 'Errores no controlados', value: apiMetrics ? apiMetrics.errors.unhandled : '-', color: 'bg-gray-600', icon: MessageSquare },
-  ];
-
-  if (!apiMetrics && !inquiries.length && (loadingState.inquiries || loadingState.metrics)) {
+  if (!inquiries.length && loadingState.inquiries) {
     return <AdminSectionLoader label="Cargando metricas y consultas..." />;
   }
 
@@ -150,7 +137,7 @@ export default function Dashboard({ inquiries, activityLog }) {
       </div>
 
       <div>
-        <h2 className="text-xl font-extrabold text-gray-900 mb-6">Dashboard</h2>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-6">Panel general</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {cards.map((c) => (
             <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
@@ -161,20 +148,6 @@ export default function Dashboard({ inquiries, activityLog }) {
                   <p className="text-xs text-gray-500">{c.label}</p>
                   {c.label === 'Top consultado' && topConsultedProduct.count > 0 && <p className="text-[11px] text-gray-400 mt-0.5">{topConsultedProduct.name}</p>}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-extrabold text-gray-700 mb-3 uppercase tracking-wide">Salud API</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {opCards.map((c) => (
-            <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 ${c.color} rounded-xl flex items-center justify-center`}><c.icon size={18} className="text-white" /></div>
-                <div><p className="text-2xl font-extrabold text-gray-900">{c.value}</p><p className="text-xs text-gray-500">{c.label}</p></div>
               </div>
             </div>
           ))}

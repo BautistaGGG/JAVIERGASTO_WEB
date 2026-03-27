@@ -1,11 +1,13 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { apiFetch, ensureApiResponse, isApiUnavailableError } from '../services/api';
 import { formatApiErrorMessage } from '../services/errorUtils';
 
 const AuthContext = createContext();
+const SESSION_CHECK_INTERVAL_MS = 30_000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -29,6 +31,13 @@ export function AuthProvider({ children }) {
 
       if (payload.success && payload.token) {
         localStorage.setItem('industrialpro_token', payload.token);
+        if (payload.expiresAt) {
+          localStorage.setItem('industrialpro_session_expires_at', payload.expiresAt);
+          setSessionExpiresAt(payload.expiresAt);
+        } else {
+          localStorage.removeItem('industrialpro_session_expires_at');
+          setSessionExpiresAt(null);
+        }
         setUser(payload.user);
         return { success: true, user: payload.user };
       }
@@ -48,18 +57,39 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     apiFetch('/admin/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem('industrialpro_token');
     localStorage.removeItem('industrialpro_auth');
+    localStorage.removeItem('industrialpro_session_expires_at');
+    setSessionExpiresAt(null);
     setUser(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!user || !sessionExpiresAt) return undefined;
+
+    const checkSessionExpiration = () => {
+      const expiresAtTs = new Date(sessionExpiresAt).getTime();
+      if (!Number.isFinite(expiresAtTs)) {
+        logout();
+        return;
+      }
+      if (Date.now() >= expiresAtTs) {
+        logout();
+      }
+    };
+
+    checkSessionExpiration();
+    const interval = setInterval(checkSessionExpiration, SESSION_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [logout, sessionExpiresAt, user]);
 
   const isAuthenticated = Boolean(user);
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, isAdmin, loading, sessionExpiresAt }}>
       {children}
     </AuthContext.Provider>
   );

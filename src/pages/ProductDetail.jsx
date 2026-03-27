@@ -48,11 +48,31 @@ export default function ProductDetail() {
   }, [id]);
 
   const product = products.find((p) => p.id === Number(id));
+  const productSchema = product ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    sku: product.sku || undefined,
+    image: [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean),
+    description: product.description || '',
+    brand: { '@type': 'Brand', name: product.brand || 'Hidraulica Gasto' },
+    category: product.category || undefined,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'ARS',
+      price: Number(product.price || 0),
+      availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      url: `${window.location.origin}/producto/${product.id}`,
+    },
+  } : null;
   useSeo({
     title: product ? `${product.name} | Hidráulica Gastó` : 'Producto | Hidráulica Gastó',
     description: product?.description || 'Detalle de producto industrial y consulta técnica.',
     image: product?.image,
     path: product ? `/producto/${product.id}` : '/producto',
+    structuredData: productSchema,
+    structuredDataId: product ? `product-${product.id}` : 'product-fallback',
   });
 
   if (loading) return <SkeletonDetail />;
@@ -426,73 +446,3 @@ export default function ProductDetail() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

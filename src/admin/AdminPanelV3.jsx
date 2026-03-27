@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Award, BookOpen, Clock, LayoutDashboard, LogOut, Menu, MessageSquare, Package, Tags, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAdmin } from '../context/AdminContext';
 import ConfirmModal from './components/ConfirmModal';
 import AdminLogin from './components/AdminLogin';
-import Dashboard from './components/Dashboard';
-import ProductsManager from './components/ProductsManager';
-import SimpleManager from './components/SimpleManager';
-import InquiriesManager from './components/InquiriesManager';
-import AuditManager from './components/AuditManager';
-import Glossary from './components/Glossary';
 import AdminSectionLoader from './components/AdminSectionLoader';
 import { DEFAULT_INQUIRY_FILTERS, DEFAULT_PRODUCT_FILTERS } from './components/shared';
 import BrandWordmark from '../components/BrandWordmark';
+
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const ProductsManager = lazy(() => import('./components/ProductsManager'));
+const SimpleManager = lazy(() => import('./components/SimpleManager'));
+const InquiriesManager = lazy(() => import('./components/InquiriesManager'));
+const AuditManager = lazy(() => import('./components/AuditManager'));
+const Glossary = lazy(() => import('./components/Glossary'));
 
 const TAB_IDS = ['dashboard', 'products', 'categories', 'brands', 'inquiries', 'audit', 'glossary'];
 const createSearchParams = () => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -98,16 +99,13 @@ export default function AdminPanelV3() {
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
     const nextTab = TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'dashboard';
-    if (nextTab !== activeTab) setActiveTab(nextTab);
+    setActiveTab((prev) => (prev === nextTab ? prev : nextTab));
 
     const nextProductFilters = readFiltersFromQuery(searchParams, DEFAULT_PRODUCT_FILTERS, 'p_');
-    if (!isEqualShallow(nextProductFilters, productFilters)) setProductFilters(nextProductFilters);
+    setProductFilters((prev) => (isEqualShallow(nextProductFilters, prev) ? prev : nextProductFilters));
 
     const nextInquiryFilters = readFiltersFromQuery(searchParams, DEFAULT_INQUIRY_FILTERS, 'q_');
-    if (!isEqualShallow(nextInquiryFilters, inquiryFilters)) setInquiryFilters(nextInquiryFilters);
-    // Importante: solo reaccionar a cambios reales de URL.
-    // Si dependemos de activeTab/filters acá, puede pisar el click del usuario con estado viejo.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInquiryFilters((prev) => (isEqualShallow(nextInquiryFilters, prev) ? prev : nextInquiryFilters));
   }, [searchParams]);
 
   useEffect(() => {
@@ -150,7 +148,6 @@ export default function AdminPanelV3() {
       try {
         localStorage.setItem('admin_activity_log', JSON.stringify(next));
       } catch {
-        // ignore localStorage write errors
       }
       return next;
     });
@@ -189,7 +186,7 @@ export default function AdminPanelV3() {
   if (!isAuthenticated) return <AdminLogin />;
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Panel general', icon: LayoutDashboard },
     { id: 'products', label: 'Productos', icon: Package },
     { id: 'categories', label: 'Categorias', icon: Tags },
     { id: 'brands', label: 'Marcas', icon: Award },
@@ -205,49 +202,77 @@ export default function AdminPanelV3() {
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard inquiries={safeInquiries} activityLog={activityLog} />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando panel general..." />}>
+            <Dashboard inquiries={safeInquiries} activityLog={activityLog} />
+          </Suspense>
+        );
       case 'products':
-        return <ProductsManager filters={productFilters} setFilters={setProductFilters} requestConfirm={requestConfirm} onActivity={onActivity} />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando productos..." />}>
+            <ProductsManager filters={productFilters} setFilters={setProductFilters} requestConfirm={requestConfirm} onActivity={onActivity} />
+          </Suspense>
+        );
       case 'categories':
         return (
-          <SimpleManager
-            title="Categorias"
-            items={safeCategories}
-            openLabel="Nueva"
-            onCreate={addCategory}
-            onUpdate={updateCategory}
-            onDelete={deleteCategory}
-            getMainText={(item) => item.name}
-            getSubText={(item) => item.slug || ''}
-            requestConfirm={requestConfirm}
-            onActivity={onActivity}
-            isLoading={!dataLoaded && safeLoadingState.core}
-          />
+          <Suspense fallback={<AdminSectionLoader label="Cargando categorias..." />}>
+            <SimpleManager
+              title="Categorias"
+              items={safeCategories}
+              openLabel="Nueva"
+              onCreate={addCategory}
+              onUpdate={updateCategory}
+              onDelete={deleteCategory}
+              getMainText={(item) => item.name}
+              getSubText={(item) => item.slug || ''}
+              requestConfirm={requestConfirm}
+              onActivity={onActivity}
+              isLoading={!dataLoaded && safeLoadingState.core}
+            />
+          </Suspense>
         );
       case 'brands':
         return (
-          <SimpleManager
-            title="Marcas"
-            items={safeBrands}
-            openLabel="Nueva"
-            onCreate={addBrand}
-            onUpdate={updateBrand}
-            onDelete={deleteBrand}
-            getMainText={(item) => item.name}
-            getSubText={(item) => (item.isActive ? 'Activa' : 'Inactiva')}
-            requestConfirm={requestConfirm}
-            onActivity={onActivity}
-            isLoading={!dataLoaded && safeLoadingState.core}
-          />
+          <Suspense fallback={<AdminSectionLoader label="Cargando marcas..." />}>
+            <SimpleManager
+              title="Marcas"
+              items={safeBrands}
+              openLabel="Nueva"
+              onCreate={addBrand}
+              onUpdate={updateBrand}
+              onDelete={deleteBrand}
+              getMainText={(item) => item.name}
+              getSubText={(item) => (item.isActive ? 'Activa' : 'Inactiva')}
+              requestConfirm={requestConfirm}
+              onActivity={onActivity}
+              isLoading={!dataLoaded && safeLoadingState.core}
+            />
+          </Suspense>
         );
       case 'inquiries':
-        return <InquiriesManager filters={inquiryFilters} setFilters={setInquiryFilters} onActivity={onActivity} />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando consultas..." />}>
+            <InquiriesManager filters={inquiryFilters} setFilters={setInquiryFilters} onActivity={onActivity} />
+          </Suspense>
+        );
       case 'audit':
-        return <AuditManager />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando auditoria..." />}>
+            <AuditManager />
+          </Suspense>
+        );
       case 'glossary':
-        return <Glossary />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando glosario..." />}>
+            <Glossary />
+          </Suspense>
+        );
       default:
-        return <Dashboard inquiries={inquiries} activityLog={activityLog} />;
+        return (
+          <Suspense fallback={<AdminSectionLoader label="Cargando panel general..." />}>
+            <Dashboard inquiries={inquiries} activityLog={activityLog} />
+          </Suspense>
+        );
     }
   };
 
@@ -283,6 +308,9 @@ export default function AdminPanelV3() {
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id);
+                const nextParams = new URLSearchParams(searchParams);
+                nextParams.set('tab', tab.id);
+                updateSearchParams(nextParams, { replace: true });
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${

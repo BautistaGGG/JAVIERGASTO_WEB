@@ -1,9 +1,48 @@
 ﻿const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[\d\s\-+()]{7,20}$/;
-
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const isValidEmail = (value) => typeof value === 'string' && EMAIL_REGEX.test(value.trim());
 const isValidNumber = (value) => value !== '' && value !== null && value !== undefined && Number.isFinite(Number(value));
+const onlyDigits = (value) => String(value || '').replace(/\D+/g, '');
+
+export function normalizeArgentinaPhone(rawPhone) {
+  const raw = String(rawPhone || '').trim();
+  if (!raw) return { ok: false, e164: '', reason: 'empty' };
+
+  let digits = onlyDigits(raw);
+  if (!digits) return { ok: false, e164: '', reason: 'no_digits' };
+
+  if (digits.startsWith('00')) digits = digits.slice(2);
+
+  let national = digits;
+  if (digits.startsWith('54')) {
+    national = digits.slice(2);
+  } else if (digits.startsWith('0')) {
+    national = digits.slice(1);
+  }
+
+  if (!national) return { ok: false, e164: '', reason: 'empty_national' };
+
+  if (national.length >= 11) {
+    for (let areaLen = 2; areaLen <= 4; areaLen += 1) {
+      if (national.slice(areaLen, areaLen + 2) === '15') {
+        const candidate = `${national.slice(0, areaLen)}${national.slice(areaLen + 2)}`;
+        if (candidate.length >= 10 && candidate.length <= 13) {
+          national = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  if (national.startsWith('549')) national = national.slice(1);
+  if (national.startsWith('54')) national = national.slice(2);
+
+  if (national.length < 10 || national.length > 13) {
+    return { ok: false, e164: '', reason: 'invalid_length' };
+  }
+
+  return { ok: true, e164: `+54${national}` };
+}
 
 export function validateAdminLogin(payload = {}) {
   const errors = [];
@@ -74,9 +113,8 @@ export function validateContactPayload(payload = {}) {
   if (!isNonEmptyString(message) || message.length < 10) errors.push('El mensaje debe tener al menos 10 caracteres');
   if (message.length > 2000) errors.push('El mensaje excede el máximo permitido');
 
-  if (phone && !PHONE_REGEX.test(phone)) {
-    errors.push('El teléfono no es válido');
-  }
+  if (!phone) errors.push('El teléfono es obligatorio');
+  if (phone && !normalizeArgentinaPhone(phone).ok) errors.push('El teléfono no es válido para Argentina');
 
   if (subject.length > 120) errors.push('El asunto excede el máximo permitido');
 

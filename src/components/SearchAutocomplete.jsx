@@ -97,7 +97,7 @@ export default function SearchAutocomplete({ onNavigate, mobile = false }) {
           onFocus={() => { if (query.trim().length >= 2) setOpen(true); }}
           onKeyDown={handleKeyDown}
           placeholder="Buscar productos, marcas..."
-          className="w-full pl-10 pr-10 py-2.5 border border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-zinc-950 transition-all"
+          className="w-full pl-10 pr-10 py-2.5 border border-zinc-700 rounded-xl text-sm text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-zinc-950 transition-all"
           autoComplete="off"
         />
         {query && (

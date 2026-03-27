@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Clock, RefreshCcw, Search } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import AdminSectionLoader from './AdminSectionLoader';
 import { formatDate } from './shared';
 
 export default function AuditManager() {
-  const { auditEvents, refreshAuditEvents, loadAuditEvents, loadingState } = useAdmin();
+  const { auditEvents, refreshAuditEvents, loadingState } = useAdmin();
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (!auditEvents.length) void loadAuditEvents();
-  }, [auditEvents.length, loadAuditEvents]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -43,7 +39,7 @@ export default function AuditManager() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Buscar por acción, entidad, actor o detalle"
-          className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 bg-white"
+          className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
         />
       </label>
 
@@ -69,5 +65,3 @@ export default function AuditManager() {
     </div>
   );
 }
-
-

@@ -3,7 +3,7 @@ import { requireAdmin } from '../auth.js';
 import { handleUnexpectedError, sendError } from '../http.js';
 import { logInfo } from '../logger.js';
 import { createRateLimiter } from '../security.js';
-import { validateContactPayload, validateInquiryStatus } from '../validators.js';
+import { normalizeArgentinaPhone, validateContactPayload, validateInquiryStatus } from '../validators.js';
 import { addAuditEvent } from '../auditLog.js';
 import { createContact, listContacts, updateContactStatus } from '../repositories/contactRepository.js';
 
@@ -56,8 +56,10 @@ router.post('/', contactSubmitLimiter, (req, res) => {
 
   try {
     const body = req.body || {};
+    const normalizedPhone = normalizeArgentinaPhone(body.phone);
     const contact = createContact({
       ...body,
+      phone: normalizedPhone.ok ? normalizedPhone.e164 : String(body.phone || '').trim(),
       status: 'pending',
       source: 'contact_form',
     });

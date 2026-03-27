@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, Search, X } from 'lucide-react';
+import { Check, Eye, Filter, Search, X } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { useToast } from '../../context/ToastContext';
 import Pagination from './Pagination';
@@ -9,35 +9,11 @@ import { trackWhatsAppClick } from '../../services/trackingService';
 import { DEFAULT_INQUIRY_FILTERS, formatDate, parseDateValue } from './shared';
 
 export default function InquiriesManager({ filters, setFilters, onActivity }) {
-  const { inquiries, updateInquiryStatus, loadingState, loadInquiries, apiError } = useAdmin();
+  const { inquiries, updateInquiryStatus, loadingState, apiError } = useAdmin();
   const { addToast } = useToast();
   const [expandedId, setExpandedId] = useState(null);
   const [busyIds, setBusyIds] = useState([]);
-  const [criticalOnly, setCriticalOnly] = useState(false);
   const expandedCloseTargetRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof loadInquiries === 'function') {
-      void loadInquiries();
-    }
-  }, [loadInquiries]);
-
-  const sourceLabels = {
-    contact_form: { text: 'Formulario', className: 'bg-red-100 text-red-800' },
-    whatsapp: { text: 'WhatsApp', className: 'bg-emerald-100 text-emerald-800' },
-    product_page: { text: 'Producto', className: 'bg-red-100 text-red-800' },
-  };
-
-  const getSlaInfo = useCallback((item) => {
-    if (item.status === 'replied') return { label: 'Respondida', className: 'bg-gray-100 text-gray-800', isCritical: false };
-    const date = parseDateValue(item.createdAt || item.updatedAt || item.date);
-    if (!date) return { label: 'Sin fecha', className: 'bg-gray-100 text-gray-700', isCritical: false };
-
-    const ageHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
-    if (ageHours > 48) return { label: '>48h', className: 'bg-red-100 text-red-800', isCritical: true };
-    if (ageHours > 24) return { label: '24-48h', className: 'bg-gray-100 text-gray-800', isCritical: false };
-    return { label: '<24h', className: 'bg-gray-100 text-gray-800', isCritical: false };
-  }, []);
 
   const filtered = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
@@ -49,8 +25,6 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
       .filter((item) => {
         if (filters.status !== 'all' && item.status !== filters.status) return false;
         if (filters.source !== 'all' && item.source !== filters.source) return false;
-        if (criticalOnly && !getSlaInfo(item).isCritical) return false;
-
         const blob = `${item.name || ''} ${item.email || ''} ${item.phone || ''} ${item.subject || ''} ${item.message || ''} ${item.productName || ''}`.toLowerCase();
         if (text && !blob.includes(text)) return false;
 
@@ -60,7 +34,7 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
         return true;
       })
       .sort((a, b) => (parseDateValue(b.createdAt || b.updatedAt || b.date)?.getTime() || 0) - (parseDateValue(a.createdAt || a.updatedAt || a.date)?.getTime() || 0));
-  }, [inquiries, filters, criticalOnly, getSlaInfo]);
+  }, [inquiries, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / filters.pageSize));
   const safePage = Math.min(filters.page, totalPages);
@@ -73,7 +47,6 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
   const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
 
   const resetFilters = () => {
-    setCriticalOnly(false);
     setFilters({ ...DEFAULT_INQUIRY_FILTERS });
   };
 
@@ -85,21 +58,13 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
   };
 
   const applyPreset = (preset) => {
-    if (preset === 'critical_pending') {
-      setCriticalOnly(true);
-      setFilters((prev) => ({ ...prev, status: 'pending', source: 'all', search: '', dateFrom: '', dateTo: '', page: 1 }));
-      return;
-    }
-
     if (preset === 'replied_today') {
       const today = formatDateInput(new Date());
-      setCriticalOnly(false);
       setFilters((prev) => ({ ...prev, status: 'replied', source: 'all', search: '', dateFrom: today, dateTo: today, page: 1 }));
       return;
     }
 
     if (preset === 'whatsapp_pending') {
-      setCriticalOnly(false);
       setFilters((prev) => ({ ...prev, status: 'pending', source: 'whatsapp', search: '', dateFrom: '', dateTo: '', page: 1 }));
     }
   };
@@ -170,19 +135,17 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <label className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Buscar por nombre, WhatsApp, asunto o mensaje" className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm" />
+            <input value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Buscar por nombre, WhatsApp, asunto o mensaje" className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent" />
           </label>
-          <select value={filters.status} onChange={(event) => setFilter('status', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"><option value="pending">Solo pendientes</option><option value="replied">Solo respondidas</option><option value="all">Todos los estados</option></select>
-          <select value={filters.source} onChange={(event) => setFilter('source', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"><option value="all">Origen: todos</option><option value="contact_form">Formulario</option><option value="whatsapp">WhatsApp</option><option value="product_page">Producto</option></select>
-          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">Desde<input type="date" value={filters.dateFrom} onChange={(event) => setFilter('dateFrom', event.target.value)} className="flex-1 px-3 py-2.5 border border-gray-300 rounded-xl text-sm" /></label>
-          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">Hasta<input type="date" value={filters.dateTo} onChange={(event) => setFilter('dateTo', event.target.value)} className="flex-1 px-3 py-2.5 border border-gray-300 rounded-xl text-sm" /></label>
+          <select value={filters.status} onChange={(event) => setFilter('status', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="pending">Solo pendientes</option><option value="replied">Solo respondidas</option><option value="all">Todos los estados</option></select>
+          <select value={filters.source} onChange={(event) => setFilter('source', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Origen: todos</option><option value="contact_form">Formulario</option><option value="whatsapp">WhatsApp</option><option value="product_page">Producto</option></select>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">Desde<input type="date" value={filters.dateFrom} onChange={(event) => setFilter('dateFrom', event.target.value)} className="flex-1 px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent" /></label>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">Hasta<input type="date" value={filters.dateTo} onChange={(event) => setFilter('dateTo', event.target.value)} className="flex-1 px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent" /></label>
           <button type="button" onClick={resetFilters} className="inline-flex items-center justify-center gap-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl px-3 py-2.5 text-sm font-semibold"><Filter size={15} /> Limpiar filtros</button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => applyPreset('critical_pending')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${criticalOnly ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}>Pendientes criticas</button>
           <button type="button" onClick={() => applyPreset('replied_today')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-red-50 text-red-700 border-red-200 hover:bg-red-100">Respondidas hoy</button>
           <button type="button" onClick={() => applyPreset('whatsapp_pending')} className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100">WhatsApp pendientes</button>
-          {criticalOnly && <span className="text-[11px] font-semibold text-red-700 bg-red-100 border border-red-200 px-2 py-1 rounded-lg">Solo SLA &gt;48h</span>}
         </div>
       </div>
 
@@ -199,40 +162,44 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase hidden lg:table-cell">Motivo</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Producto</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Fecha</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">SLA</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Origen</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Estado</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {pageItems.map((inq) => {
-                const src = sourceLabels[inq.source] || sourceLabels.product_page;
-                const sla = getSlaInfo(inq);
                 const rowBusy = busyIds.includes(inq.id);
-                const nextStatus = inq.status === 'pending' ? 'replied' : 'pending';
-                const criticalRow = inq.status === 'pending' && sla.isCritical;
 
                 return (
-                  <tr key={inq.id} className={`hover:bg-gray-50 transition-colors cursor-pointer ${criticalRow ? 'bg-red-50/40' : ''}`} onClick={(event) => openExpanded(inq.id, event.currentTarget)}>
+                  <tr key={inq.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3"><p className="font-semibold text-gray-900 text-xs">{inq.name}</p></td>
                     <td className="px-4 py-3 text-xs text-gray-600">{inq.phone || inq.email || '-'}</td>
                     <td className="px-4 py-3 text-xs text-gray-600 hidden lg:table-cell">{inq.subject || '-'}</td>
                     <td className="px-4 py-3 text-xs text-gray-600 max-w-[150px] truncate">{inq.productName || '-'}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{formatDate(inq.createdAt || inq.updatedAt || inq.date)}</td>
-                    <td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sla.className}`}>{sla.label}</span></td>
-                    <td className="px-4 py-3 text-center"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${src.className}`}>{src.text}</span></td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        disabled={rowBusy}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setStatus(inq, nextStatus);
-                        }}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full disabled:opacity-60 ${inq.status === 'pending' ? 'bg-red-100 text-red-800 hover:bg-red-200' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-                      >
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${inq.status === 'pending' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
                         {inq.status === 'pending' ? 'Pendiente' : 'Respondida'}
-                      </button>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(event) => openExpanded(inq.id, event.currentTarget)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        >
+                          <Eye size={13} /> Detalle
+                        </button>
+                        <button
+                          type="button"
+                          disabled={rowBusy || inq.status === 'replied'}
+                          onClick={() => setStatus(inq, 'replied')}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Check size={13} /> Marcar respondida
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -243,13 +210,10 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
 
         <div className="md:hidden p-3 space-y-3">
           {pageItems.map((inq) => {
-            const src = sourceLabels[inq.source] || sourceLabels.product_page;
-            const sla = getSlaInfo(inq);
             const rowBusy = busyIds.includes(inq.id);
-            const criticalRow = inq.status === 'pending' && sla.isCritical;
 
             return (
-              <div key={inq.id} className={`rounded-xl border bg-white p-3 ${criticalRow ? 'border-red-300 ring-1 ring-red-200' : 'border-gray-200'}`}>
+              <div key={inq.id} className="rounded-xl border bg-white p-3 border-gray-200">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-bold text-gray-900">{inq.name}</p>
@@ -257,21 +221,21 @@ export default function InquiriesManager({ filters, setFilters, onActivity }) {
                     <p className="text-xs text-gray-500">{formatDate(inq.createdAt || inq.updatedAt || inq.date)}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${src.className}`}>{src.text}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sla.className}`}>SLA {sla.label}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inq.status === 'pending' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>{inq.status === 'pending' ? 'Pendiente' : 'Respondida'}</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">{inq.subject || '-'}</p>
-                {criticalRow && <p className="text-[11px] font-semibold text-red-700 mt-1">Prioridad alta: pendiente por mas de 48h.</p>}
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={(event) => openExpanded(inq.id, event.currentTarget)} className="py-1.5 rounded-lg border text-xs">Ver detalle</button>
+                  <button type="button" onClick={(event) => openExpanded(inq.id, event.currentTarget)} className="inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 bg-white">
+                    <Eye size={13} /> Ver detalle
+                  </button>
                   <button
                     type="button"
-                    disabled={rowBusy}
-                    onClick={() => setStatus(inq, inq.status === 'pending' ? 'replied' : 'pending')}
-                    className="py-1.5 rounded-lg border text-xs disabled:opacity-60"
+                    disabled={rowBusy || inq.status === 'replied'}
+                    onClick={() => setStatus(inq, 'replied')}
+                    className="inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60"
                   >
-                    {inq.status === 'pending' ? 'Marcar respondida' : 'Marcar pendiente'}
+                    <Check size={13} /> Marcar respondida
                   </button>
                 </div>
               </div>

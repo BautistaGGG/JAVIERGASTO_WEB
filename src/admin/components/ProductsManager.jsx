@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, Copy, History, Star, StarOff } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { useToast } from '../../context/ToastContext';
@@ -391,14 +391,14 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <label className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input ref={searchRef} value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Buscar por nombre, SKU o marca" className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder:text-gray-500" />
+            <input ref={searchRef} value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Buscar por nombre, SKU o marca" className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent" />
           </label>
-          <select value={filters.isActive} onChange={(event) => setFilter('isActive', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="all">Estado: todos</option><option value="true">Activos</option><option value="false">Inactivos</option></select>
-          <select value={filters.featured} onChange={(event) => setFilter('featured', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="all">Destacado: todos</option><option value="true">Destacados</option><option value="false">No destacados</option></select>
-          <select value={filters.stockStatus} onChange={(event) => setFilter('stockStatus', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="all">Stock: todos</option>{STOCK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-          <select value={filters.categoryId} onChange={(event) => setFilter('categoryId', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="all">Categoria: todas</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-          <select value={filters.brandId} onChange={(event) => setFilter('brandId', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="all">Marca: todas</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-          <select value={filters.sortBy} onChange={(event) => setFilter('sortBy', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900"><option value="id_desc">Orden: mas recientes</option><option value="name_asc">Nombre A-Z</option><option value="name_desc">Nombre Z-A</option><option value="price_asc">Precio menor</option><option value="price_desc">Precio mayor</option><option value="updated_desc">Ultima actualizacion</option></select>
+          <select value={filters.isActive} onChange={(event) => setFilter('isActive', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Estado: todos</option><option value="true">Activos</option><option value="false">Inactivos</option></select>
+          <select value={filters.featured} onChange={(event) => setFilter('featured', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Destacado: todos</option><option value="true">Destacados</option><option value="false">No destacados</option></select>
+          <select value={filters.stockStatus} onChange={(event) => setFilter('stockStatus', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Stock: todos</option>{STOCK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <select value={filters.categoryId} onChange={(event) => setFilter('categoryId', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Categoria: todas</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <select value={filters.brandId} onChange={(event) => setFilter('brandId', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="all">Marca: todas</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <select value={filters.sortBy} onChange={(event) => setFilter('sortBy', event.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="id_desc">Orden: mas recientes</option><option value="name_asc">Nombre A-Z</option><option value="name_desc">Nombre Z-A</option><option value="price_asc">Precio menor</option><option value="price_desc">Precio mayor</option><option value="updated_desc">Ultima actualizacion</option></select>
           <button type="button" onClick={clearFilters} className="rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Limpiar filtros</button>
         </div>
         <div className="mt-3 flex items-center justify-between text-sm"><span className="text-gray-600">{filteredProducts.length} resultados</span><span className="text-gray-500">{selectedIds.length} seleccionados</span></div>
@@ -418,11 +418,11 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
 
         {advancedBulkEnabled && bulkPanelOpen && (
           <div className="p-3 border-b border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-            <input type="number" value={bulkState.pricePercent} onChange={(event) => setBulkState((prev) => ({ ...prev, pricePercent: event.target.value }))} placeholder="% precio (+/-)" className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-500" />
-            <select value={bulkState.brandId} onChange={(event) => setBulkState((prev) => ({ ...prev, brandId: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"><option value="">Marca (sin cambio)</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <select value={bulkState.categoryId} onChange={(event) => setBulkState((prev) => ({ ...prev, categoryId: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"><option value="">Categoria (sin cambio)</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <select value={bulkState.stockStatus} onChange={(event) => setBulkState((prev) => ({ ...prev, stockStatus: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"><option value="">Stock (sin cambio)</option>{STOCK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-            <select value={bulkState.showPrice} onChange={(event) => setBulkState((prev) => ({ ...prev, showPrice: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"><option value="noop">Precio (sin cambio)</option><option value="show">Mostrar precio</option><option value="hide">Ocultar precio</option></select>
+            <input type="number" value={bulkState.pricePercent} onChange={(event) => setBulkState((prev) => ({ ...prev, pricePercent: event.target.value }))} placeholder="% precio (+/-)" className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent" />
+            <select value={bulkState.brandId} onChange={(event) => setBulkState((prev) => ({ ...prev, brandId: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="">Marca (sin cambio)</option>{brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select value={bulkState.categoryId} onChange={(event) => setBulkState((prev) => ({ ...prev, categoryId: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="">Categoria (sin cambio)</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select value={bulkState.stockStatus} onChange={(event) => setBulkState((prev) => ({ ...prev, stockStatus: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="">Stock (sin cambio)</option>{STOCK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+            <select value={bulkState.showPrice} onChange={(event) => setBulkState((prev) => ({ ...prev, showPrice: event.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"><option value="noop">Precio (sin cambio)</option><option value="show">Mostrar precio</option><option value="hide">Ocultar precio</option></select>
             <button type="button" disabled={bulkSaving} onClick={applyAdvancedBulk} className="lg:col-span-5 rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-60">Aplicar cambios avanzados</button>
           </div>
         )}
@@ -456,10 +456,10 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
                           aria-label={`Seleccionar ${product.name}`}
                           className={`inline-flex h-5 w-5 items-center justify-center rounded border ${selected ? 'border-red-600 bg-red-600 text-white' : 'border-gray-400 bg-white text-transparent'}`}
                         >
-                          ✓
+                          X
                         </button>
                       </td>
-                      <td className="px-3 py-3"><p className="font-semibold text-gray-900">{product.name}</p><p className="text-xs text-gray-500">{product.brand} · {product.sku || 'Sin SKU'}</p></td>
+                      <td className="px-3 py-3"><p className="font-semibold text-gray-900">{product.name}</p><p className="text-xs text-gray-500">{product.brand} - {product.sku || 'Sin SKU'}</p></td>
                       <td className="px-3 py-3 text-gray-700">{product.category || '-'}</td>
                       <td className="px-3 py-3 text-gray-900 font-semibold">{priceVisible ? `$ ${Number(product.price || 0).toLocaleString('es-AR')}` : 'Oculto'}</td>
                       <td className="px-3 py-3 text-gray-700">{product.stockStatus || 'in_stock'}</td>
@@ -486,7 +486,15 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
           </div>
         )}
 
-        {pageItems.length === 0 && !safeLoadingState.core && <div className="px-4 py-10 text-center text-sm text-gray-500">No hay productos para estos filtros. <button type="button" onClick={clearFilters} className="text-red-600 font-semibold">Limpiar filtros</button></div>}
+        {pageItems.length === 0 && !safeLoadingState.core && (
+          <div className="px-4 py-10 text-center text-sm text-gray-500">
+            <p>No hay productos para estos filtros.</p>
+            <div className="mt-2 flex items-center justify-center gap-3">
+              <button type="button" onClick={clearFilters} className="text-red-600 font-semibold">Limpiar filtros</button>
+              <button type="button" onClick={() => { setErrors({}); setForm({ ...emptyForm }); setModalOpen(true); }} className="text-gray-700 font-semibold">Crear producto</button>
+            </div>
+          </div>
+        )}
         <Pagination page={safePage} totalPages={totalPages} onPageChange={(page) => setFilters((prev) => ({ ...prev, page }))} />
       </div>
       {modalOpen && (
@@ -495,7 +503,7 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
             <div className="px-5 py-4 border-b border-gray-200"><h3 className="text-lg font-bold text-gray-900">{form.id ? 'Editar producto' : 'Nuevo producto'}</h3></div>
             <form onSubmit={submitForm} className="p-5 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="md:col-span-2 text-sm font-semibold text-gray-700">Nombre<input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} className={`mt-1 w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder:text-gray-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`} />{errors.name && <span className="text-xs text-red-600">{errors.name}</span>}</label>
+                <label className="md:col-span-2 text-sm font-semibold text-gray-700">Nombre<input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} className={`mt-1 w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${errors.name ? 'border-red-500' : 'border-gray-300'}`} />{errors.name && <span className="text-xs text-red-600">{errors.name}</span>}</label>
                 <label className="text-sm font-semibold text-gray-700">Precio<input type="number" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} className={`mt-1 w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder:text-gray-500 ${errors.price ? 'border-red-500' : 'border-gray-300'}`} />{errors.price && <span className="text-xs text-red-600">{errors.price}</span>}</label>
                 <label className="text-sm font-semibold text-gray-700">SKU<input value={form.sku} onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value }))} className={`mt-1 w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder:text-gray-500 ${errors.sku ? 'border-red-500' : 'border-gray-300'}`} />{errors.sku && <span className="text-xs text-red-600">{errors.sku}</span>}</label>
                 <label className="text-sm font-semibold text-gray-700">Stock<input type="number" value={form.stock} onChange={(event) => setForm((prev) => ({ ...prev, stock: event.target.value }))} className={`mt-1 w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder:text-gray-500 ${errors.stock ? 'border-red-500' : 'border-gray-300'}`} />{errors.stock && <span className="text-xs text-red-600">{errors.stock}</span>}</label>
@@ -518,7 +526,7 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
             <div className="px-5 py-4 border-b border-gray-200"><h3 className="text-lg font-bold text-gray-900">Historial de cambios</h3><p className="text-sm text-gray-500 mt-0.5">{historyProduct.name}</p></div>
             <div className="max-h-[60vh] overflow-y-auto p-5">
               {Array.isArray(historyProduct?.specs?.__admin?.versions) && historyProduct.specs.__admin.versions.length > 0 ? (
-                <div className="space-y-3">{historyProduct.specs.__admin.versions.map((version, idx) => (<div key={`${historyProduct.id}-${idx}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3"><p className="text-sm font-bold text-gray-900">Version anterior #{historyProduct.specs.__admin.version - idx - 1}</p><p className="text-xs text-gray-600">{formatDate(version.savedAt)} · {version.reason || 'update'}</p><div className="mt-2 text-xs text-gray-700 grid grid-cols-2 gap-2"><span>Precio: $ {Number(version.price || 0).toLocaleString('es-AR')}</span><span>Stock: {version.stock ?? '-'}</span><span>Estado: {version.publishStatus || '-'}</span><span>Precio visible: {version.showPrice === false ? 'No' : 'Si'}</span></div></div>))}</div>
+                <div className="space-y-3">{historyProduct.specs.__admin.versions.map((version, idx) => (<div key={`${historyProduct.id}-${idx}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3"><p className="text-sm font-bold text-gray-900">Version anterior #{historyProduct.specs.__admin.version - idx - 1}</p><p className="text-xs text-gray-600">{formatDate(version.savedAt)} - {version.reason || 'update'}</p><div className="mt-2 text-xs text-gray-700 grid grid-cols-2 gap-2"><span>Precio: $ {Number(version.price || 0).toLocaleString('es-AR')}</span><span>Stock: {version.stock ?? '-'}</span><span>Estado: {version.publishStatus || '-'}</span><span>Precio visible: {version.showPrice === false ? 'No' : 'Si'}</span></div></div>))}</div>
               ) : (
                 <p className="text-sm text-gray-600">Este producto aun no tiene versiones guardadas.</p>
               )}
@@ -530,4 +538,3 @@ export default function ProductsManager({ filters, setFilters, requestConfirm, o
     </div>
   );
 }
-

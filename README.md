@@ -56,3 +56,11 @@ Nota:
 - Frontend en modo API-first con fallback mock controlado por flag.
 - Tests base de validadores y datos mock disponibles.
 - El panel admin esta pensado para un unico usuario operador (single-admin).
+- El panel admin exige login explicito y maneja expiracion de sesion en cliente.
+- Se agrego manejo robusto de 401/403 para forzar relogin cuando la sesion vence.
+- Se optimizo carga del admin con lazy-load de modulos y reduccion de requests duplicadas.
+
+## Operacion
+- Checklist de despliegue: `docs/RELEASE_CHECKLIST.md`
+- Runbook de incidentes: `docs/RUNBOOK.md`
+- Preparación migración DB: `docs/DB_MIGRATION_PREP.md`

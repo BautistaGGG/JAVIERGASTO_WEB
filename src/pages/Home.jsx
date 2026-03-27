@@ -108,6 +108,17 @@ function AccordionItem({ question, answer, isOpen, onToggle }) {
 export default function Home() {
   const [openItems, setOpenItems] = useState({});
   const { addToast } = useToast();
+  const faqEntities = faqSections
+    .flatMap((section) => section.questions || [])
+    .slice(0, 20)
+    .map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.a,
+      },
+    }));
   const localBusinessSchema = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
@@ -127,7 +138,13 @@ export default function Home() {
     title: 'Hidráulica Gastó | Insumos Industriales B2B',
     description: 'Catálogo industrial, cotizaciones rápidas y asesoramiento técnico para empresas.',
     path: '/',
-    structuredData: localBusinessSchema,
+    structuredData: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        localBusinessSchema,
+        { '@type': 'FAQPage', mainEntity: faqEntities },
+      ],
+    },
     structuredDataId: 'local-business',
   });
 
@@ -478,8 +495,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-
-
-

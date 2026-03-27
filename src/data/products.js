@@ -1,4 +1,4 @@
-export const WHATSAPP_NUMBER = '543329478589';
+export const WHATSAPP_NUMBER = '543329598306';
 export const COMPANY_NAME = 'Hidráulica Gastó';
 
 export const categories = [

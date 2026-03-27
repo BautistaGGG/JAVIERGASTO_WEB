@@ -9,7 +9,7 @@ import { formatApiErrorMessage } from '../services/errorUtils';
 const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
@@ -51,6 +51,15 @@ export function AdminProvider({ children }) {
     setApiError(formatApiErrorMessage(error, fallback));
   };
 
+  const handleAuthError = (error) => {
+    if (error?.status === 401 || error?.status === 403) {
+      logout();
+      setApiError('Sesion vencida. Inicia sesion nuevamente.');
+      return true;
+    }
+    return false;
+  };
+
   const parseInquiryList = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.items)) return payload.items;
@@ -90,6 +99,7 @@ export function AdminProvider({ children }) {
         loadedRef.current.core = true;
         return true;
       } catch (error) {
+        if (handleAuthError(error)) return false;
         if (!mockFallbackEnabled) {
           if (isApiUnavailableError(error)) setUnavailableMessage();
           else setApiErrorFromError(error, 'No se pudo cargar el panel de administracion');
@@ -125,6 +135,7 @@ export function AdminProvider({ children }) {
         }
         return [];
       } catch (error) {
+        if (handleAuthError(error)) return [];
         if (!mockFallbackEnabled) {
           if (isApiUnavailableError(error)) setUnavailableMessage();
           else setApiErrorFromError(error, 'No se pudieron cargar las consultas');
@@ -157,6 +168,7 @@ export function AdminProvider({ children }) {
         }
         return null;
       } catch (error) {
+        if (handleAuthError(error)) return null;
         if (!mockFallbackEnabled) {
           if (isApiUnavailableError(error)) setUnavailableMessage();
           else setApiErrorFromError(error, 'No se pudieron cargar las metricas');
@@ -189,6 +201,7 @@ export function AdminProvider({ children }) {
         }
         return [];
       } catch (error) {
+        if (handleAuthError(error)) return [];
         if (!mockFallbackEnabled) {
           if (isApiUnavailableError(error)) setUnavailableMessage();
           else setApiErrorFromError(error, 'No se pudo cargar la auditoria');
@@ -253,6 +266,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo crear el producto');
@@ -282,6 +296,7 @@ export function AdminProvider({ children }) {
         return result;
       }
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo actualizar el producto');
@@ -314,6 +329,7 @@ export function AdminProvider({ children }) {
       setApiError(null);
       return result;
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo restaurar la version anterior');
@@ -334,6 +350,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo eliminar el producto');
@@ -379,6 +396,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo crear la categoria');
@@ -411,6 +429,7 @@ export function AdminProvider({ children }) {
         return;
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo actualizar la categoria');
@@ -437,6 +456,7 @@ export function AdminProvider({ children }) {
         deletionApplied = true;
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo eliminar la categoria');
@@ -475,6 +495,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo crear la marca');
@@ -507,6 +528,7 @@ export function AdminProvider({ children }) {
         return;
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo actualizar la marca');
@@ -528,6 +550,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo eliminar la marca');
@@ -555,6 +578,7 @@ export function AdminProvider({ children }) {
         setApiError(null);
       }
     } catch (error) {
+      if (handleAuthError(error)) return null;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo crear la consulta');
@@ -584,6 +608,7 @@ export function AdminProvider({ children }) {
         return;
       }
     } catch (error) {
+      if (handleAuthError(error)) return;
       if (!mockFallbackEnabled) {
         if (isApiUnavailableError(error)) setUnavailableMessage();
         else setApiErrorFromError(error, 'No se pudo actualizar la consulta');
